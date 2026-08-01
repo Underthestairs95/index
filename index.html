@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TW Clear Bouwtijd Calculator — JSON — Offline</title>
+<style>
+:root{--bg:#0f1720;--panel:#18232f;--panel2:#202f3d;--text:#eef5fa;--muted:#9fb1c0;--line:#314454;--accent:#f0b44d;--good:#52c878;--warn:#f2c14e;--bad:#ed6a5a}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(135deg,#0d141b,#14202a);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+.wrap{max-width:1500px;margin:auto;padding:24px}
+h1{margin:0 0 6px;font-size:30px} .sub{color:var(--muted);margin-bottom:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel{background:rgba(24,35,47,.96);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 12px 35px #0004}
+label{display:block;font-weight:700;margin-bottom:7px} textarea{width:100%;min-height:220px;background:#0d151d;color:#dce9f2;border:1px solid #405667;border-radius:10px;padding:12px;font:12px/1.45 Consolas,monospace;resize:vertical}
+.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px}
+.field{background:var(--panel2);padding:10px;border-radius:10px;border:1px solid var(--line)} .field span{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}
+input,select{width:100%;padding:9px;background:#0d151d;color:var(--text);border:1px solid #405667;border-radius:8px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}button{border:0;border-radius:9px;padding:11px 16px;font-weight:800;cursor:pointer;background:var(--accent);color:#221708}button.alt{background:#2e4353;color:#eef5fa}
+.status{padding:11px 14px;border-radius:9px;background:#21313e;color:#cfe0eb;margin-bottom:14px}.error{background:#4a2424;color:#ffd6d1}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}.card b{font-size:24px;display:block}.card small{color:var(--muted)}
+.tablewrap{overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px}table{border-collapse:collapse;width:100%;min-width:1450px}th,td{padding:9px 8px;border-bottom:1px solid #293c4b;text-align:right;white-space:nowrap}th{position:sticky;top:0;background:#20303d;z-index:1;color:#e7f1f7;font-size:12px}th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.ready{color:var(--good);font-weight:800}.soon{color:var(--warn);font-weight:800}.late{color:var(--bad);font-weight:800}.muted{color:var(--muted)}details{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}code{color:#ffd27f}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.inputs{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:repeat(2,1fr)}}
+
+body.compact th.detail, body.compact td.detail { display:none; }
+body.compact table { min-width:560px; }
+body.compact th, body.compact td { font-size:14px; padding:11px 10px; }
+body.compact th:first-child, body.compact td:first-child { width:75%; }
+.compact-note { color:var(--muted); font-size:13px; margin:0 0 12px; }
+
+.cards.compact-cards{grid-template-columns:repeat(4,minmax(120px,1fr))}
+.cards.compact-cards .card{padding:10px 12px}
+.cards.compact-cards .card b{font-size:20px}
+@media(max-width:700px){.cards.compact-cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body class="compact">
+<div class="wrap">
+<h1>TW Clear Bouwtijd Calculator — JSON</h1>
+<div class="sub">Volledig offline. F12 exporteert alleen compacte JSON naar je klembord.</div>
+
+<div class="panel" style="margin-bottom:16px">
+  <h2 style="margin-top:0">Gegevens ophalen met F12</h2>
+  <p class="muted">Elke code maakt compacte JSON en kopieert die automatisch naar je klembord. Daarna plak je de JSON hieronder.</p>
+
+  <div class="grid">
+    <div>
+      <label>1. Gecombineerd-overzicht</label>
+      <ol>
+        <li>Ga naar <b>Overzichten → Gecombineerd</b>.</li>
+        <li>Druk op <b>F12 → Console</b>.</li>
+        <li>Kopieer de code hieronder, plak hem in de console en druk Enter.</li>
+      </ol>
+      <textarea id="codeCombined" readonly style="min-height:260px">(() => {
+  const table = document.querySelector('#combined_table');
+  if (!table) throw new Error('Gecombineerd-tabel niet gevonden');
+
+  const unitOrder = ['spear','sword','axe','archer','spy','light','marcher','heavy','ram','catapult','knight'];
+  const num = s => Number(String(s || '0').replace(/\./g,'').replace(/[^\d-]/g,'')) || 0;
+  const unitFrom = (title, re) => {
+    const m = String(title || '').match(re);
+    return m ? Number(m[1]) : 0;
+  };
+  const speedBonus = (text, building) => {
+    const re = new RegExp('\\+(\\d+)%\\s+' + building + '\\s+Rekruteringssnelheid', 'ig');
+    let total = 0, m;
+    while ((m = re.exec(text))) total += Number(m[1]);
+    return total;
+  };
+
+  const villages = [...table.querySelectorAll('tr')].map(tr => {
+    const label = tr.querySelector('.quickedit-label');
+    if (!label) return null;
+
+    const text = label.textContent.trim();
+    const coord = text.match(/\((\d{3}\|\d{3})\)/)?.[1];
+    if (!coord) return null;
+
+    const unitCells = [...tr.querySelectorAll('td.unit-item')];
+    const units = {};
+    unitOrder.forEach((u, i) => units[u] = num(unitCells[i]?.textContent));
+
+    const links = [...tr.querySelectorAll('a[href*="screen="]')];
+    const titleFor = screen => links.find(a => a.getAttribute('href').includes('screen=' + screen))
+      ?.querySelector('img')?.dataset.title || '';
+
+    const barracksTitle = titleFor('barracks');
+    const stableTitle = titleFor('stable');
+    const garageTitle = titleFor('garage');
+    const allTitles = [...tr.querySelectorAll('[data-title]')].map(x => x.dataset.title || '').join(' ');
+
+    const bonuses = {
+      barracks: speedBonus(allTitles, 'Kazerne'),
+      stable: speedBonus(allTitles, 'Stal'),
+      garage: speedBonus(allTitles, 'Werkplaats')
+    };
+    if (/50%\s+snellere rekrutering in de Werkplaats/i.test(allTitles)) bonuses.garage += 50;
+
+    return {
+      id: tr.querySelector('.quickedit-vn')?.dataset.id || '',
+      name: label.dataset.text || text.replace(/\s*\(\d{3}\|\d{3}\).*$/, '').trim(),
+      coord,
+      units,
+      queue: {
+        axe: unitFrom(barracksTitle, /(\d+)\s+Bijlstrijders?/i),
+        light: unitFrom(stableTitle, /(\d+)\s+Lichte cavalerie/i),
+        ram: unitFrom(garageTitle, /(\d+)\s+Rammen?/i)
+      },
+      queueTitle: {
+        barracks: barracksTitle,
+        stable: stableTitle,
+        garage: garageTitle
+      },
+      bonuses
+    };
+  }).filter(Boolean);
+
+  const output = {
+    type: 'tw-clear-combined',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    villages
+  };
+
+  copy(JSON.stringify(output));
+  console.log(`✅ ${villages.length} dorpen als Gecombineerd-JSON gekopieerd`);
+})();</textarea>
+      <div class="actions" style="margin:10px 0 0">
+        <button class="alt" type="button" onclick="copyCode('codeCombined')">F12-code kopiëren</button>
+      </div>
+    </div>
+
+    <div>
+      <label>2. Gebouwenoverzicht</label>
+      <ol>
+        <li>Ga naar <b>Overzichten → Gebouwen</b>.</li>
+        <li>Druk op <b>F12 → Console</b>.</li>
+        <li>Kopieer de code hieronder, plak hem in de console en druk Enter.</li>
+      </ol>
+      <textarea id="codeBuildings" readonly style="min-height:260px">(() => {
+  const table = [...document.querySelectorAll('table')].find(t =>
+    t.querySelector('.quickedit-label') &&
+    /Punten/i.test(t.innerText) &&
+    t.querySelectorAll('tr').length > 2
+  );
+  if (!table) throw new Error('Gebouwentabel niet gevonden');
+
+  const num = s => Number(String(s || '0').replace(/\./g,'').replace(/[^\d-]/g,'')) || 0;
+
+  const villages = [...table.querySelectorAll('tr')].map(tr => {
+    const label = tr.querySelector('.quickedit-label');
+    if (!label) return null;
+
+    const text = label.textContent.trim();
+    const coord = text.match(/\((\d{3}\|\d{3})\)/)?.[1];
+    if (!coord) return null;
+
+    const cells = [...tr.querySelectorAll(':scope > td')];
+    const villageCellIndex = cells.findIndex(td => td.querySelector('.quickedit-label'));
+    if (villageCellIndex < 0) return null;
+
+    const values = cells.slice(villageCellIndex + 1).map(td => num(td.textContent));
+    if (values.length < 5) return null;
+
+    return {
+      id: tr.querySelector('.quickedit-vn')?.dataset.id || '',
+      name: label.dataset.text || text.replace(/\s*\(\d{3}\|\d{3}\).*$/, '').trim(),
+      coord,
+      points: values[0],
+      main: values[1],
+      barracks: values[2],
+      stable: values[3],
+      garage: values[4]
+    };
+  }).filter(Boolean);
+
+  const output = {
+    type: 'tw-clear-buildings',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    villages
+  };
+
+  copy(JSON.stringify(output));
+  console.log(`✅ ${villages.length} dorpen als Gebouwen-JSON gekopieerd`);
+})();</textarea>
+      <div class="actions" style="margin:10px 0 0">
+        <button class="alt" type="button" onclick="copyCode('codeBuildings')">F12-code kopiëren</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="muted" style="margin-bottom:0">De consolecode kopieert de JSON-output zelf. Je hoeft dus geen lange tabel meer te selecteren.</p>
+</div>
+
+  <p class="muted" style="margin-bottom:0">Na uitvoeren staat de tabel op je klembord. Plak Gecombineerd links en Gebouwen rechts.</p>
+</div>
+
+
+<div class="grid">
+  <div class="panel">
+    <label>1. Gecombineerd-JSON plakken</label>
+    <div class="actions" style="margin:0 0 8px"><button class="alt" type="button" onclick="pasteInto('combined')">Plak van klembord</button></div><textarea id="combined" placeholder='Plak hier JSON met type "tw-clear-combined"'></textarea>
+  </div>
+  <div class="panel">
+    <label>2. Gebouwen-JSON plakken</label>
+    <div class="actions" style="margin:0 0 8px"><button class="alt" type="button" onclick="pasteInto('buildings')">Plak van klembord</button></div><textarea id="buildings" placeholder='Plak hier JSON met type "tw-clear-buildings"'></textarea>
+  </div>
+</div>
+
+<div class="inputs">
+ <div class="field"><span>Doel bijlen</span><input id="goalAxe" type="number" value="4000"></div>
+ <div class="field"><span>Doel LC</span><input id="goalLight" type="number" value="3075"></div>
+ <div class="field"><span>Doel rammen</span><input id="goalRam" type="number" value="350"></div>
+ <div class="field"><span>Speelsnelheid</span><input id="gameSpeed" type="number" value="1.5" step="0.0001" min="0.0001"></div><div class="field"><span>Eenhedensnelheid</span><input id="unitSpeed" type="number" value="0.6667" step="0.0001" min="0.0001"></div>
+ <div class="field"><span>Gemeten bijltijd op kazerne 25</span><input id="baseAxe" type="number" value="96"></div>
+ <div class="field"><span>Gemeten LC-tijd op stal 20</span><input id="baseLight" type="number" value="185"></div>
+ <div class="field"><span>Gemeten ramtijd op werkplaats 5</span><input id="baseRam" type="number" value="1181"></div>
+</div>
+<div class="status" style="margin-top:12px">
+  Gebouwfactoren volgens de TW-tabel. Referentie: <b>kazerne 25 = 16%</b>,
+  <b>stal 20 = 21%</b> en <b>werkplaats 5 = 50%</b>.
+  De <b>speelsnelheid</b> en <b>eenhedensnelheid</b> blijven handmatig instelbaar.
+</div>
+
+<div class="actions">
+ <button id="calc">Importeren & berekenen</button>
+ <button class="alt" id="copyDiscord" type="button">📋 Discord kopie</button>
+ <button class="alt" id="toggleDetails" type="button">Toon details</button>
+ <label style="display:flex;align-items:center;gap:8px;margin-left:auto;font-weight:600"><input id="hideDef" type="checkbox" checked style="width:auto"> Verberg def/ongeldige dorpen</label>
+ <button class="alt" id="demo">Voorbeeld laden</button>
+ <button class="alt" id="save">Invoer opslaan</button>
+ <button class="alt" id="clear">Wissen</button>
+</div>
+<div id="status" class="status">Plak beide overzichten en klik op berekenen.</div>
+<div class="cards" id="cards"></div>
+<p class="compact-note">Compacte weergave: alleen dorp en totale resterende bouwtijd. Gebruik “Toon details” voor alle berekeningen.</p><div class="tablewrap"><table id="result"><thead></thead><tbody></tbody></table></div>
+
+<details>
+<summary><b>Hoe de berekening werkt</b></summary>
+<p>Aanwezig + lopende queue wordt van het doel afgetrokken. De resterende bouwtijd gebruikt voorlopig de officiële gebouwfactoren: <code>standaardtijd × gebouwfactor ÷ (speelsnelheid × eenhedensnelheid)</code>. Queue-eindtijden worden opgeteld vóór nieuwe productie. Snelheidsrelieken en bonusdorpen worden waar herkenbaar meegenomen.</p><p><b>Referentiemeting:</b> bijl = 96 sec op kazerne 25, LC = 185 sec op stal 20 en ram = 1181 sec op werkplaats 5. De calculator gebruikt de officiële tijdsfactor per gebouwlevel. Speelsnelheid en eenhedensnelheid kun je apart aanpassen voor andere werelden.</p>
+<p><b>Let op:</b> controleer de drie basistijden met één dorp in het spel. Zodra die kloppen, kloppen alle dorpen met verschillende levels ook.</p>
+</details>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+let latestRows=[];
+function copyCode(id){
+  const el=document.getElementById(id);
+  navigator.clipboard.writeText(el.value).then(()=>{
+    const old=$('#status').textContent;
+    $('#status').className='status';
+    $('#status').textContent='F12-code gekopieerd.';
+    setTimeout(()=>$('#status').textContent=old,1800);
+  });
+}
+async function pasteInto(id){
+  try{
+    document.getElementById(id).value = await navigator.clipboard.readText();
+    $('#status').className='status';
+    $('#status').textContent='JSON van klembord geplakt.';
+  }catch{
+    $('#status').className='status error';
+    $('#status').textContent='Klembordtoegang geblokkeerd. Plak handmatig met Ctrl+V.';
+  }
+}
+const coordRe=/\((\d{3}\|\d{3})\)/;
+const unitOrder=['spear','sword','axe','archer','spy','light','marcher','heavy','ram','catapult','knight'];
+
+function parseNumber(s){return Number(String(s||'0').replace(/\./g,'').replace(/[^\d-]/g,''))||0}
+function parseJsonInput(text, expectedType){
+  let data;
+  try{
+    data = JSON.parse(text.trim());
+  }catch{
+    throw new Error('Ongeldige JSON. Voer de juiste F12-exportcode uit en plak de output opnieuw.');
+  }
+  if(data?.type !== expectedType){
+    throw new Error(`Verkeerd exporttype. Verwacht "${expectedType}", ontvangen "${data?.type || 'onbekend'}".`);
+  }
+  if(data?.version !== 1 || !Array.isArray(data.villages)){
+    throw new Error('Onbekende JSON-versie of dorpenlijst ontbreekt.');
+  }
+  return data;
+}
+
+function parseQueueEnd(title, exportedAt){
+  if(!title || /Geen rekrutering/i.test(title)) return null;
+  const base = exportedAt ? new Date(exportedAt) : new Date();
+  let d = new Date(base);
+  let m = title.match(/vandaag om (\d{1,2}):(\d{2})/i);
+  if(m){
+    d.setHours(+m[1], +m[2], 0, 0);
+    if(d < base) d.setDate(d.getDate() + 1);
+    return d;
+  }
+  m = title.match(/morgen om (\d{1,2}):(\d{2})/i);
+  if(m){
+    d.setDate(d.getDate() + 1);
+    d.setHours(+m[1], +m[2], 0, 0);
+    return d;
+  }
+  m = title.match(/op (\d{1,2})\.(\d{1,2})\. om (\d{1,2}):(\d{2})/i);
+  if(m){
+    d = new Date(base.getFullYear(), +m[2]-1, +m[1], +m[3], +m[4]);
+    if(d < base) d.setFullYear(d.getFullYear() + 1);
+    return d;
+  }
+  return null;
+}
+
+function parseCombined(text){
+  const data = parseJsonInput(text, 'tw-clear-combined');
+  return data.villages.map(v => ({
+    id: v.id || '',
+    name: v.name || v.coord,
+    coord: v.coord,
+    units: v.units || {},
+    queue: v.queue || {axe:0,light:0,ram:0},
+    queueEnd: {
+      barracks: parseQueueEnd(v.queueTitle?.barracks || '', data.exportedAt),
+      stable: parseQueueEnd(v.queueTitle?.stable || '', data.exportedAt),
+      garage: parseQueueEnd(v.queueTitle?.garage || '', data.exportedAt)
+    },
+    bonuses: v.bonuses || {barracks:0,stable:0,garage:0}
+  }));
+}
+
+function parseBuildings(text){
+  const data = parseJsonInput(text, 'tw-clear-buildings');
+  const map = {};
+  data.villages.forEach(v => {
+    map[v.coord] = {
+      points: v.points || 0,
+      main: v.main || 0,
+      barracks: v.barracks || 0,
+      stable: v.stable || 0,
+      garage: v.garage || 0
+    };
+  });
+  return map;
+}
+const BUILDING_FACTORS = {
+  barracks: {
+    1:63,2:59,3:56,4:53,5:50,6:47,7:44,8:42,9:39,10:37,
+    11:35,12:33,13:31,14:29,15:28,16:26,17:25,18:23,19:22,20:21,
+    21:20,22:19,23:17,24:16,25:16
+  },
+  stable: {
+    1:63,2:59,3:56,4:53,5:50,6:47,7:44,8:42,9:39,10:37,
+    11:35,12:33,13:31,14:29,15:28,16:26,17:25,18:23,19:22,20:21
+  },
+  garage: {
+    1:63,2:59,3:56,4:53,5:50,6:47,7:44,8:42,9:39,10:37,
+    11:35,12:33,13:31,14:29,15:28
+  }
+};
+
+function unitSeconds(referenceTime, level, building, referenceLevel, gameSpeed, unitSpeed, bonus){
+  const currentFactor = BUILDING_FACTORS[building]?.[level];
+  const referenceFactor = BUILDING_FACTORS[building]?.[referenceLevel];
+  if(!currentFactor || !referenceFactor) return NaN;
+
+  const effectiveSpeed = gameSpeed * unitSpeed;
+
+  // De referentietijd is gemeten op de ingestelde snelheden.
+  // Eerst terug naar de standaardtijd op 100%, daarna naar huidig gebouwlevel.
+  const standard100 = referenceTime * effectiveSpeed / (referenceFactor / 100);
+  const normal = standard100 * (currentFactor / 100) / effectiveSpeed;
+
+  return normal / (1 + bonus / 100);
+}
+function queueWait(end){return end?Math.max(0,(end-Date.now())/1000):0}
+function fmt(sec){
+ if(sec<=1)return 'Klaar';
+ const d=Math.floor(sec/86400);sec%=86400;const h=Math.floor(sec/3600);sec%=3600;const m=Math.ceil(sec/60);
+ return [d?d+'d':'',h?h+'u':'',m?m+'m':''].filter(Boolean).join(' ');
+}
+function fmtCompact(sec){
+ if(sec<=1)return '✅';
+ if(sec<3600)return Math.ceil(sec/60)+'m';
+ if(sec<86400)return Math.ceil(sec/3600)+'u';
+ const d=Math.floor(sec/86400);
+ const h=Math.ceil((sec%86400)/3600);
+ return h>=24?(d+1)+'d':d+'d'+(h?` ${h}u`:'');
+}
+function dateFmt(sec){if(sec<=1)return 'Nu';return new Date(Date.now()+sec*1000).toLocaleString('nl-NL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+
+function isFiniteRow(r){
+  return Number.isFinite(r.total)
+    && Number.isFinite(r.times.axe)
+    && Number.isFinite(r.times.light)
+    && Number.isFinite(r.times.ram);
+}
+
+function isOffVillage(r){
+  const present = (r.units?.axe || 0) + (r.units?.light || 0) + (r.units?.ram || 0);
+  const queued = (r.queue?.axe || 0) + (r.queue?.light || 0) + (r.queue?.ram || 0);
+  return present + queued > 0;
+}
+
+function calculate(){
+ try{
+  const villages=parseCombined($('#combined').value);
+  const bmap=parseBuildings($('#buildings').value);
+  if(!Object.keys(bmap).length){
+    throw new Error('Geen gebouwlevels gevonden. Gebruik de Gebouwen-F12-code bovenaan en plak de gekopieerde JSON opnieuw.');
+  }
+  const g={axe:+$('#goalAxe').value,light:+$('#goalLight').value,ram:+$('#goalRam').value};
+  const base={axe:+$('#baseAxe').value,light:+$('#baseLight').value,ram:+$('#baseRam').value};
+  const gameSpeed=Math.max(.0001,+$('#gameSpeed').value);
+  const unitSpeed=Math.max(.0001,+$('#unitSpeed').value);
+  let rows=villages.filter(v=>bmap[v.coord]).map(v=>{
+    const b=bmap[v.coord];
+    const future={axe:v.units.axe+v.queue.axe,light:v.units.light+v.queue.light,ram:v.units.ram+v.queue.ram};
+    const miss={axe:Math.max(0,g.axe-future.axe),light:Math.max(0,g.light-future.light),ram:Math.max(0,g.ram-future.ram)};
+    const levels={axe:b.barracks,light:b.stable,ram:b.garage};
+    const referenceLevels={axe:25,light:20,ram:5};
+    const buildings={axe:'barracks',light:'stable',ram:'garage'};
+    const waits={axe:queueWait(v.queueEnd.barracks),light:queueWait(v.queueEnd.stable),ram:queueWait(v.queueEnd.garage)};
+    const bonus={axe:v.bonuses.barracks,light:v.bonuses.stable,ram:v.bonuses.garage};
+    const times={};
+    ['axe','light','ram'].forEach(u=>{
+      const perUnit=unitSeconds(base[u],levels[u],buildings[u],referenceLevels[u],gameSpeed,unitSpeed,bonus[u]);
+      times[u]=miss[u]===0?0:waits[u]+miss[u]*perUnit;
+    });
+    const total=Math.max(times.axe,times.light,times.ram);
+    const bottleneck=Object.entries(times).sort((a,b)=>b[1]-a[1])[0][0];
+    return {...v,b,future,miss,times,total,bottleneck};
+  });
+
+  const hideDef = $('#hideDef')?.checked;
+  rows = rows.filter(isFiniteRow);
+  if(hideDef) rows = rows.filter(isOffVillage);
+
+  render(rows,Object.keys(bmap).length);
+ }catch(e){$('#status').className='status error';$('#status').textContent=e.message}
+}
+function render(rows,buildingCount){
+ latestRows=rows;
+ const ready=rows.filter(r=>r.total<=1).length, h6=rows.filter(r=>r.total<=21600).length, h24=rows.filter(r=>r.total<=86400).length;
+ const totalMissing=rows.reduce((a,r)=>({axe:a.axe+r.miss.axe,light:a.light+r.miss.light,ram:a.ram+r.miss.ram}),{axe:0,light:0,ram:0});
+ $('#status').className='status';
+ $('#status').textContent=`${rows.length} dorpen correct gekoppeld aan ${buildingCount} gebouwregels.`;
+ $('#cards').className='cards compact-cards';
+ $('#cards').innerHTML=[
+  ['Off dorpen',rows.length],['Klaar',ready],['< 6 uur',h6],['< 24 uur',h24]
+ ].map(([a,b])=>`<div class="card"><b>${b}</b><small>${a}</small></div>`).join('');
+ const heads=[
+  ['Dorp',''],
+  ['Clear klaar',''],
+  ['Coord','detail'],
+  ['Datum','detail'],
+  ['Knelpunt','detail'],
+  ['Kaz','detail'],['Stal','detail'],['WP','detail'],
+  ['Factor Kaz','detail'],['Factor Stal','detail'],['Factor WP','detail'],
+  ['Bijl nu','detail'],['Queue','detail'],['Bijl na queue','detail'],['Mist','detail'],
+  ['LC nu','detail'],['Queue','detail'],['LC na queue','detail'],['Mist','detail'],
+  ['Ram nu','detail'],['Queue','detail'],['Ram na queue','detail'],['Mist','detail'],
+  ['Bijl ETA','detail'],['LC ETA','detail'],['Ram ETA','detail']
+ ];
+ $('#result thead').innerHTML='<tr>'+heads.map(([x,c])=>`<th class="${c}">${x}</th>`).join('')+'</tr>';
+ rows.sort((a,b)=>a.total-b.total);
+ $('#result tbody').innerHTML=rows.map(r=>{
+  const cls=r.total<=1?'ready':r.total<=21600?'soon':'late';
+  const bn={axe:'Kazerne',light:'Stal',ram:'Werkplaats'}[r.bottleneck];
+  return `<tr>
+   <td>${r.name}</td>
+   <td class="${cls}">${fmtCompact(r.total)}</td>
+   <td class="detail">${r.coord}</td>
+   <td class="detail">${dateFmt(r.total)}</td>
+   <td class="detail">${r.total<=1?'—':bn}</td>
+   <td class="detail">${r.b.barracks??'?'}</td><td class="detail">${r.b.stable??'?'}</td><td class="detail">${r.b.garage??'?'}</td>
+   <td class="detail">${BUILDING_FACTORS.barracks[r.b.barracks]??'?'}%</td>
+   <td class="detail">${BUILDING_FACTORS.stable[r.b.stable]??'?'}%</td>
+   <td class="detail">${BUILDING_FACTORS.garage[r.b.garage]??'?'}%</td>
+   <td class="detail">${r.units.axe}</td><td class="detail">+${r.queue.axe}</td><td class="detail">${r.future.axe}</td><td class="detail">${r.miss.axe}</td>
+   <td class="detail">${r.units.light}</td><td class="detail">+${r.queue.light}</td><td class="detail">${r.future.light}</td><td class="detail">${r.miss.light}</td>
+   <td class="detail">${r.units.ram}</td><td class="detail">+${r.queue.ram}</td><td class="detail">${r.future.ram}</td><td class="detail">${r.miss.ram}</td>
+   <td class="detail">${fmt(r.times.axe)}</td><td class="detail">${fmt(r.times.light)}</td><td class="detail">${fmt(r.times.ram)}</td>
+  </tr>`;
+ }).join('');
+}
+
+function buildDiscordText(){
+  if(!latestRows.length) throw new Error('Bereken eerst het overzicht.');
+
+  const rows = latestRows.filter(isFiniteRow).filter(isOffVillage);
+  const ready = rows.filter(r=>r.total<=1).length;
+  const under6 = rows.filter(r=>r.total>1 && r.total<=21600).length;
+  const under24 = rows.filter(r=>r.total>21600 && r.total<=86400).length;
+  const over24 = rows.filter(r=>r.total>86400).length;
+
+  const lines = [
+    '⚔️ **Clear ETA**',
+    `✅ ${ready} | <6u ${under6} | <24u ${under24} | >24u ${over24}`,
+    ''
+  ];
+
+  [...rows]
+    .sort((a,b)=>a.total-b.total)
+    .forEach(r=>{
+      const nr = (String(r.name || '').match(/^\s*(\d+)/)?.[1] || r.coord);
+      lines.push(`${nr} ${fmtCompact(r.total)}`);
+    });
+
+  return lines.join('\n');
+}
+async function copyDiscord(){
+  try{
+    const text = buildDiscordText();
+    await navigator.clipboard.writeText(text);
+    $('#status').className='status';
+    $('#status').textContent='Beknopt Discord-overzicht gekopieerd.';
+  }catch(e){
+    $('#status').className='status error';
+    $('#status').textContent=e.message || 'Discord-overzicht kopiëren mislukt.';
+  }
+}
+
+function save(){localStorage.setItem('tw_clear_offline',JSON.stringify({combined:$('#combined').value,buildings:$('#buildings').value,goalAxe:$('#goalAxe').value,goalLight:$('#goalLight').value,goalRam:$('#goalRam').value,gameSpeed:$('#gameSpeed').value,unitSpeed:$('#unitSpeed').value,baseAxe:$('#baseAxe').value,baseLight:$('#baseLight').value,baseRam:$('#baseRam').value}));$('#status').textContent='Invoer lokaal opgeslagen.'}
+function load(){try{const x=JSON.parse(localStorage.getItem('tw_clear_offline'));if(!x)return;Object.entries(x).forEach(([k,v])=>{const el=$('#'+k);if(el)el.value=v})}catch{}}
+$('#calc').onclick=calculate;
+$('#copyDiscord').onclick=copyDiscord;
+$('#hideDef').onchange=()=>{ if($('#combined').value && $('#buildings').value) calculate(); };
+$('#toggleDetails').onclick=()=>{
+  document.body.classList.toggle('compact');
+  $('#toggleDetails').textContent=document.body.classList.contains('compact')?'Toon details':'Verberg details';
+};$('#save').onclick=save;$('#clear').onclick=()=>{localStorage.removeItem('tw_clear_offline');location.reload()};
+$('#demo').onclick=()=>{alert('Plak jouw echte exports; deze versie gebruikt bewust geen ingame verbinding of voorbeeldaccountdata.')};
+load();
+</script>
+</body></html>
