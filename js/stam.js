@@ -57,39 +57,31 @@
     setTimeout(()=>button.textContent=old,1500);
   }
 
-  async function loadAccessibleTribes(userId) {
-    const { data: memberships, error } = await client
-      .from("game_account_members")
-      .select("game_account_id")
-      .eq("user_id", userId);
+  async function loadAccessibleTribes() {
+    const { data, error } = await client.rpc("get_my_tribes_v2");
     if (error) throw error;
-
-    const ids = (memberships||[]).map(x=>x.game_account_id);
-    if (!ids.length) return [];
-
-    const { data, error: e2 } = await client
-      .from("tribe_accounts")
-      .select("tribes_v2(id,name,world_code),game_account_id")
-      .in("game_account_id", ids);
-    if (e2) throw e2;
-
-    const map = new Map();
-    (data||[]).forEach(r=>{ if(r.tribes_v2) map.set(r.tribes_v2.id,r.tribes_v2); });
-    return [...map.values()].sort((a,b)=>`${a.world_code} ${a.name}`.localeCompare(`${b.world_code} ${b.name}`));
+    return (data || []).map(t => ({
+      id: t.tribe_id,
+      name: t.tribe_name,
+      world_code: t.world_code,
+      role: t.member_role
+    }));
   }
 
   async function fetchTribeData() {
     const [{data:statuses,error:sErr},{data:villages,error:vErr},{data:accounts,error:aErr}] = await Promise.all([
       client.from("clear_status").select("*").eq("tribe_v2_id",activeTribeId).order("updated_at",{ascending:false}),
       client.from("clear_villages").select("*").eq("tribe_v2_id",activeTribeId),
-      client.from("tribe_accounts").select("game_account_id,game_accounts(id,name)").eq("tribe_id",activeTribeId)
+      client.rpc("get_tribe_accounts_v2", { p_tribe_id: activeTribeId })
     ]);
     if (sErr||vErr||aErr) throw sErr||vErr||aErr;
 
     rawStatuses = statuses||[];
     rawVillages = villages||[];
     accountMap = {};
-    (accounts||[]).forEach(r=>{ if(r.game_accounts) accountMap[r.game_account_id]=r.game_accounts; });
+    (accounts||[]).forEach(r=>{
+      accountMap[r.game_account_id] = { id:r.game_account_id, name:r.game_account_name };
+    });
 
     const villageMap = {};
     rawVillages.forEach(v => (villageMap[v.game_account_id] ??= []).push(v));
@@ -246,7 +238,7 @@
     const {data:auth} = await client.auth.getUser();
     if(!auth?.user){ location.href="index.html"; return; }
 
-    availableTribes = await loadAccessibleTribes(auth.user.id);
+    availableTribes = await loadAccessibleTribes();
     if(!availableTribes.length){ status.textContent="Je hebt nog geen toegang tot een stam."; return; }
 
     activeTribeId = localStorage.getItem("tw_active_tribe");
