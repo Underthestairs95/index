@@ -108,7 +108,9 @@
         status:s,
         account:accountMap[s.game_account_id] || {name:"Onbekend account"},
         villages,cats,avg,
-        troopTotals:s.troop_totals || {}
+        troopTotals:s.troop_totals || {},
+        troopSource:s.troop_totals_source || "combined_present",
+        troopUpdatedAt:s.troop_totals_updated_at || s.updated_at
       };
     });
   }
@@ -234,6 +236,21 @@
     if(!rows.length) plannerBody.innerHTML='<tr><td colspan="10">Geen resultaten.</td></tr>';
   }
 
+  function troopSourceMeta(row) {
+    const exact = row.troopSource === "owned_overview";
+    const exportedAt = row.troopUpdatedAt ? new Date(row.troopUpdatedAt) : null;
+    const hoursOld = exportedAt ? (Date.now() - exportedAt.getTime()) / 3600000 : Infinity;
+    const stale = exact && hoursOld > 24;
+
+    return {
+      exact,
+      stale,
+      label: exact
+        ? `${stale ? "Exact, verouderd" : "Exact"} · ${age(row.troopUpdatedAt)}`
+        : `Aanwezig/fallback · ${age(row.troopUpdatedAt)}`
+    };
+  }
+
   function aggregateTroops(rows) {
     const totals = Object.fromEntries(troopKeys.map(key => [key, 0]));
     rows.forEach(row => {
@@ -246,6 +263,13 @@
 
   function renderTroops(rows) {
     const tribeTotals = aggregateTroops(rows);
+    const exactCount = rows.filter(row => row.troopSource === "owned_overview").length;
+    const estimatedCount = rows.length - exactCount;
+
+    document.getElementById("exactTroopCount").textContent =
+      `${exactCount} exacte upload${exactCount === 1 ? "" : "s"}`;
+    document.getElementById("estimatedTroopCount").textContent =
+      `${estimatedCount} fallback${estimatedCount === 1 ? "" : "s"}`;
 
     tribeTroopSummary.innerHTML = troopKeys.map(key => `
       <div class="stat">
@@ -254,15 +278,21 @@
       </div>
     `).join("");
 
-    troopBody.innerHTML = rows.map(row => `
-      <tr>
-        <td><strong>${row.account.name}</strong></td>
-        ${troopKeys.map(key => `<td>${numberFmt.format(Number(row.troopTotals?.[key] || 0))}</td>`).join("")}
-      </tr>
-    `).join("");
+    troopBody.innerHTML = rows.map(row => {
+      const source = troopSourceMeta(row);
+      const sourceClass = source.stale ? "stale" : source.exact ? "exact" : "estimate";
+
+      return `
+        <tr>
+          <td><strong>${row.account.name}</strong></td>
+          <td><span class="troop-source ${sourceClass}">${source.label}</span></td>
+          ${troopKeys.map(key => `<td>${numberFmt.format(Number(row.troopTotals?.[key] || 0))}</td>`).join("")}
+        </tr>
+      `;
+    }).join("");
 
     if (!rows.length) {
-      troopBody.innerHTML = '<tr><td colspan="13">Geen resultaten.</td></tr>';
+      troopBody.innerHTML = '<tr><td colspan="14">Geen resultaten.</td></tr>';
     }
   }
 
@@ -275,7 +305,9 @@
 
     lines.push("");
     rows.forEach(row => {
+      const source = troopSourceMeta(row);
       lines.push(`=== ${row.account.name} ===`);
+      lines.push(`Bron: ${source.label}`);
       troopKeys.forEach(key => {
         lines.push(`${troopLabels[key]}: ${numberFmt.format(Number(row.troopTotals?.[key] || 0))}`);
       });

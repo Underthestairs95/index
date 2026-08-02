@@ -466,6 +466,59 @@
     await renderRequests();
   }
 
+  function normalizeAccountName(value) {
+    return String(value || "")
+      .toLocaleLowerCase("nl-NL")
+      .replace(/[^a-z0-9]+/g, "");
+  }
+
+  function exactTroopTotalsForActiveAccount() {
+    const field = el("troopTotalsExact");
+    const text = field?.value?.trim() || "";
+    if (!text) return null;
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error("De exacte troepentotalen bevatten geen geldige JSON.");
+    }
+
+    if (data?.type !== "tw-account-troop-totals" || !Array.isArray(data.players)) {
+      throw new Error('Gebruik voor troepentotalen de F12-export met type "tw-account-troop-totals".');
+    }
+
+    const activeAccount = gameAccounts.find(account => account.id === activeGameAccountId);
+    const wantedName = normalizeAccountName(activeAccount?.name);
+    const match = data.players.find(player =>
+      normalizeAccountName(player?.name) === wantedName
+    );
+
+    if (!match) {
+      const names = data.players.map(player => player?.name).filter(Boolean).slice(0, 8).join(", ");
+      throw new Error(
+        `Geen troepenregel gevonden voor "${activeAccount?.name || "actieve account"}". ` +
+        `Gevonden: ${names || "geen spelers"}.`
+      );
+    }
+
+    const keys = [
+      "spear","sword","axe","archer","spy","light",
+      "marcher","heavy","ram","catapult","knight","snob"
+    ];
+    const totals = Object.fromEntries(keys.map(key => [
+      key,
+      Math.max(0, Number(match.units?.[key] || 0))
+    ]));
+
+    return {
+      totals,
+      playerName: match.name,
+      exportedAt: data.exportedAt || new Date().toISOString(),
+      source: "owned_overview"
+    };
+  }
+
   function troopTotals(rows) {
     const keys = [
       "spear","sword","axe","archer","spy","light",
@@ -516,6 +569,12 @@
 
     try {
       const now = new Date().toISOString();
+      const exactTroops = exactTroopTotalsForActiveAccount();
+      const combinedTroops = troopTotals(rows);
+      const selectedTroops = exactTroops?.totals || combinedTroops;
+      const troopSource = exactTroops?.source || "combined_present";
+      const troopUpdatedAt = exactTroops?.exportedAt || now;
+
       const worldCode = tribes.find(t => t.id === activeTribeId)?.world_code || DEFAULT_WORLD;
       const base = {
         user_id: activeUser.id,
@@ -529,7 +588,9 @@
         .upsert({
           ...base,
           ...summary(rows),
-          troop_totals: troopTotals(rows),
+          troop_totals: selectedTroops,
+          troop_totals_source: troopSource,
+          troop_totals_updated_at: troopUpdatedAt,
           updated_at: now
         }, { onConflict: "game_account_id,tribe_v2_id,world_code" });
       if (statusError) throw statusError;
@@ -565,7 +626,9 @@
         if (deleteError) throw deleteError;
       }
 
-      state.textContent = `✅ ${rows.length} dorpen geüpload.`;
+      state.textContent = exactTroops
+        ? `✅ ${rows.length} dorpen + exacte troepentotalen van ${exactTroops.playerName} geüpload.`
+        : `✅ ${rows.length} dorpen geüpload · troepen op basis van aanwezige troepen.`;
     } catch (error) {
       console.error(error);
       state.textContent = `Upload mislukt: ${error.message || "onbekende fout"}`;
