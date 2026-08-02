@@ -1,14 +1,19 @@
 (() => {
   const client = window.supabaseClient;
-  const WORLD = 116;
+  const DEFAULT_WORLD = "NL116";
+
   let activeUser = null;
   let activeProfile = null;
-  let activeTribe = null;
+  let gameAccounts = [];
+  let activeGameAccountId = null;
+  let tribes = [];
+  let activeTribeId = null;
 
   const el = id => document.getElementById(id);
 
-  function setMessage(target, text, error = false) {
-    const box = el(target);
+  function setMessage(id, text, error = false) {
+    const box = el(id);
+    if (!box) return;
     box.textContent = text;
     box.className = error ? "status error" : "status";
   }
@@ -24,79 +29,285 @@
 
   function showOnly(view) {
     el("loginView").classList.toggle("hidden", view !== "login");
-    el("tribeView").classList.toggle("hidden", view !== "tribe");
+    el("setupView").classList.toggle("hidden", view !== "setup");
     el("appView").classList.toggle("hidden", view !== "app");
   }
 
-  async function profileFor(user) {
+  async function loadProfile() {
     const { data, error } = await client
       .from("profiles")
-      .select("id, player_name, role, tribe_id")
-      .eq("id", user.id)
+      .select("id,player_name,role")
+      .eq("id", activeUser.id)
       .single();
-
     if (error) throw error;
-    return data;
+    activeProfile = data;
   }
 
-  async function tribeFor(profile) {
-    if (!profile?.tribe_id) return null;
+  async function loadGameAccounts() {
     const { data, error } = await client
-      .from("tribes")
-      .select("id, name, join_code")
-      .eq("id", profile.tribe_id)
-      .single();
-
+      .from("game_account_members")
+      .select("role, game_accounts(id,name,owner_user_id,created_at)")
+      .eq("user_id", activeUser.id);
     if (error) throw error;
-    return data;
+
+    gameAccounts = (data || [])
+      .map(row => ({
+        ...row.game_accounts,
+        member_role: row.role
+      }))
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!activeGameAccountId || !gameAccounts.some(a => a.id === activeGameAccountId)) {
+      activeGameAccountId = localStorage.getItem("tw_active_game_account");
+      if (!gameAccounts.some(a => a.id === activeGameAccountId)) {
+        activeGameAccountId = gameAccounts[0]?.id || null;
+      }
+    }
+  }
+
+  async function loadTribes() {
+    if (!activeGameAccountId) {
+      tribes = [];
+      activeTribeId = null;
+      return;
+    }
+
+    const { data, error } = await client
+      .from("tribe_accounts")
+      .select("role, tribes(id,name,world_code,owner_user_id,created_at)")
+      .eq("game_account_id", activeGameAccountId);
+    if (error) throw error;
+
+    tribes = (data || [])
+      .map(row => ({
+        ...row.tribes,
+        account_role: row.role
+      }))
+      .filter(Boolean)
+      .sort((a, b) => `${a.world_code} ${a.name}`.localeCompare(`${b.world_code} ${b.name}`));
+
+    activeTribeId = localStorage.getItem("tw_active_tribe");
+    if (!tribes.some(t => t.id === activeTribeId)) {
+      activeTribeId = tribes[0]?.id || null;
+    }
+  }
+
+  function renderAccountSelectors() {
+    const select = el("activeGameAccountSelect");
+    select.innerHTML = gameAccounts.length
+      ? gameAccounts.map(a => `<option value="${a.id}">${a.name}</option>`).join("")
+      : '<option value="">Geen account</option>';
+    select.value = activeGameAccountId || "";
+
+    const tribeSelect = el("activeTribeSelect");
+    tribeSelect.innerHTML = tribes.length
+      ? tribes.map(t => `<option value="${t.id}">${t.world_code} · ${t.name}</option>`).join("")
+      : '<option value="">Geen stam</option>';
+    tribeSelect.value = activeTribeId || "";
+  }
+
+  function renderSetupAccounts() {
+    el("setupUser").textContent = activeProfile?.player_name || activeUser?.email || "Gebruiker";
+    const list = el("myGameAccounts");
+
+    if (!gameAccounts.length) {
+      list.innerHTML = '<div class="muted">Je beheert nog geen TW-account.</div>';
+      el("worldTribeSection").classList.add("hidden");
+      return;
+    }
+
+    list.innerHTML = gameAccounts.map(a => `
+      <div class="setup-item">
+        <div>
+          <strong>${a.name}</strong>
+          <div class="meta">${a.member_role === "owner" ? "Eigenaar" : "Medebeheerder"}</div>
+        </div>
+        <button class="alt choose-account" data-id="${a.id}" type="button">${a.id === activeGameAccountId ? "Actief" : "Kiezen"}</button>
+      </div>
+    `).join("");
+
+    list.querySelectorAll(".choose-account").forEach(button => {
+      button.onclick = async () => {
+        activeGameAccountId = button.dataset.id;
+        localStorage.setItem("tw_active_game_account", activeGameAccountId);
+        await loadTribes();
+        renderSetupAccounts();
+        renderSetupTribes();
+        renderAccountSelectors();
+      };
+    });
+
+    el("worldTribeSection").classList.remove("hidden");
+    el("setupActiveGameAccount").textContent =
+      gameAccounts.find(a => a.id === activeGameAccountId)?.name || "—";
+  }
+
+  function renderSetupTribes() {
+    const list = el("myTribes");
+    if (!tribes.length) {
+      list.innerHTML = '<div class="muted">Dit TW-account is nog niet aan een stam gekoppeld.</div>';
+      return;
+    }
+
+    list.innerHTML = tribes.map(t => `
+      <div class="setup-item">
+        <div>
+          <strong>${t.name}</strong>
+          <div class="meta">${t.world_code} · ${t.account_role === "owner" ? "Stameigenaar" : "Lid"}</div>
+        </div>
+        <button class="alt choose-tribe" data-id="${t.id}" type="button">${t.id === activeTribeId ? "Actief" : "Kiezen"}</button>
+      </div>
+    `).join("");
+
+    list.querySelectorAll(".choose-tribe").forEach(button => {
+      button.onclick = () => {
+        activeTribeId = button.dataset.id;
+        localStorage.setItem("tw_active_tribe", activeTribeId);
+        renderSetupTribes();
+        renderAccountSelectors();
+      };
+    });
+  }
+
+  async function renderRequests() {
+    const target = el("pendingRequests");
+    target.innerHTML = '<div class="muted">Verzoeken laden…</div>';
+
+    const [{ data: gaIncoming, error: gaIncomingError }, { data: gaMine, error: gaMineError },
+           { data: tribeIncoming, error: tribeIncomingError }, { data: tribeMine, error: tribeMineError }] =
+      await Promise.all([
+        client.rpc("get_incoming_game_account_requests"),
+        client.rpc("get_my_game_account_requests"),
+        client.rpc("get_incoming_tribe_requests"),
+        client.rpc("get_my_tribe_requests")
+      ]);
+
+    const err = gaIncomingError || gaMineError || tribeIncomingError || tribeMineError;
+    if (err) {
+      target.innerHTML = `<div class="muted">Verzoeken konden niet worden geladen: ${err.message}</div>`;
+      return;
+    }
+
+    const items = [];
+
+    (gaIncoming || []).forEach(r => items.push(`
+      <div class="setup-item">
+        <div>
+          <strong>${r.requester_name}</strong> wil toegang tot <strong>${r.game_account_name}</strong>
+          <div class="meta">TW-accountverzoek</div>
+        </div>
+        <div>
+          <button class="approve-ga" data-id="${r.request_id}" type="button">Goedkeuren</button>
+          <button class="alt reject-ga" data-id="${r.request_id}" type="button">Afwijzen</button>
+        </div>
+      </div>
+    `));
+
+    (tribeIncoming || []).forEach(r => items.push(`
+      <div class="setup-item">
+        <div>
+          <strong>${r.game_account_name}</strong> wil bij <strong>${r.tribe_name}</strong> op ${r.world_code}
+          <div class="meta">Stamverzoek</div>
+        </div>
+        <div>
+          <button class="approve-tribe" data-id="${r.request_id}" type="button">Goedkeuren</button>
+          <button class="alt reject-tribe" data-id="${r.request_id}" type="button">Afwijzen</button>
+        </div>
+      </div>
+    `));
+
+    (gaMine || []).forEach(r => items.push(`
+      <div class="setup-item">
+        <div>
+          Toegang tot <strong>${r.game_account_name}</strong>
+          <div class="meta">Status: ${r.status}</div>
+        </div>
+        <span class="badge ${r.status === "pending" ? "pending" : ""}">${r.status}</span>
+      </div>
+    `));
+
+    (tribeMine || []).forEach(r => items.push(`
+      <div class="setup-item">
+        <div>
+          <strong>${r.game_account_name}</strong> → ${r.world_code} · <strong>${r.tribe_name}</strong>
+          <div class="meta">Status: ${r.status}</div>
+        </div>
+        <span class="badge ${r.status === "pending" ? "pending" : ""}">${r.status}</span>
+      </div>
+    `));
+
+    target.innerHTML = items.length ? items.join("") : '<div class="muted">Geen openstaande verzoeken.</div>';
+
+    target.querySelectorAll(".approve-ga,.reject-ga").forEach(button => {
+      button.onclick = async () => {
+        const approve = button.classList.contains("approve-ga");
+        const { error } = await client.rpc("decide_game_account_request", {
+          p_request_id: Number(button.dataset.id),
+          p_approve: approve
+        });
+        if (error) return setMessage("accountSetupMessage", error.message, true);
+        await refreshData();
+      };
+    });
+
+    target.querySelectorAll(".approve-tribe,.reject-tribe").forEach(button => {
+      button.onclick = async () => {
+        const approve = button.classList.contains("approve-tribe");
+        const { error } = await client.rpc("decide_tribe_request", {
+          p_request_id: Number(button.dataset.id),
+          p_approve: approve
+        });
+        if (error) return setMessage("tribeSetupMessage", error.message, true);
+        await refreshData();
+      };
+    });
+  }
+
+  async function refreshData() {
+    await loadGameAccounts();
+    await loadTribes();
+    renderSetupAccounts();
+    renderSetupTribes();
+    renderAccountSelectors();
+    await renderRequests();
   }
 
   async function refreshAuth() {
     const { data, error } = await client.auth.getUser();
-
     if (error || !data?.user) {
       activeUser = null;
       activeProfile = null;
-      activeTribe = null;
       showOnly("login");
       return;
     }
 
     activeUser = data.user;
-    activeProfile = await profileFor(activeUser);
-    activeTribe = await tribeFor(activeProfile);
+    await loadProfile();
+    await refreshData();
 
-    if (!activeProfile.tribe_id) {
-      showOnly("tribe");
-      return;
+    el("currentPlayer").textContent = activeProfile.player_name || activeUser.email || "Gebruiker";
+
+    if (!gameAccounts.length) {
+      showOnly("setup");
+    } else {
+      showOnly("app");
     }
-
-    el("currentPlayer").textContent = activeProfile.player_name || activeUser.email || "Stamlid";
-    el("currentTribe").textContent = activeTribe?.name || "Stamgroep";
-    el("currentTribeCode").textContent = activeTribe?.join_code ? `(${activeTribe.join_code})` : "";
-    showOnly("app");
   }
 
   async function login() {
     const email = el("loginEmail").value.trim();
     const password = el("loginPassword").value;
+    if (!email || !password) return setMessage("loginMessage", "Vul e-mailadres en wachtwoord in.", true);
 
-    if (!email || !password) {
-      setMessage("loginMessage", "Vul e-mailadres en wachtwoord in.", true);
-      return;
-    }
-
-    el("loginButton").disabled = true;
+    const button = el("loginButton");
+    button.disabled = true;
     setMessage("loginMessage", "Bezig met inloggen…");
 
     const { error } = await client.auth.signInWithPassword({ email, password });
-    el("loginButton").disabled = false;
+    button.disabled = false;
 
-    if (error) {
-      setMessage("loginMessage", "Inloggen mislukt. Controleer je gegevens.", true);
-      return;
-    }
-
+    if (error) return setMessage("loginMessage", "Inloggen mislukt. Controleer je gegevens.", true);
     await refreshAuth();
   }
 
@@ -106,121 +317,99 @@
     const password = el("registerPassword").value;
     const password2 = el("registerPassword2").value;
 
-    if (playerName.length < 2) {
-      setMessage("loginMessage", "Vul een geldige spelersnaam in.", true);
-      return;
-    }
-    if (!email) {
-      setMessage("loginMessage", "Vul een geldig e-mailadres in.", true);
-      return;
-    }
-    if (password.length < 8) {
-      setMessage("loginMessage", "Gebruik een wachtwoord van minimaal 8 tekens.", true);
-      return;
-    }
-    if (password !== password2) {
-      setMessage("loginMessage", "De twee wachtwoorden zijn niet gelijk.", true);
-      return;
-    }
+    if (playerName.length < 2) return setMessage("loginMessage", "Vul een geldige naam in.", true);
+    if (!email) return setMessage("loginMessage", "Vul een geldig e-mailadres in.", true);
+    if (password.length < 8) return setMessage("loginMessage", "Gebruik minimaal 8 tekens.", true);
+    if (password !== password2) return setMessage("loginMessage", "De wachtwoorden zijn niet gelijk.", true);
 
-    el("registerButton").disabled = true;
+    const button = el("registerButton");
+    button.disabled = true;
     setMessage("loginMessage", "Account wordt aangemaakt…");
 
     const { data, error } = await client.auth.signUp({
       email,
       password,
-      options: {
-        data: { player_name: playerName }
-      }
+      options: { data: { player_name: playerName } }
     });
 
-    el("registerButton").disabled = false;
+    button.disabled = false;
 
-    if (error) {
-      setMessage("loginMessage", `Registreren mislukt: ${error.message}`, true);
-      return;
-    }
+    if (error) return setMessage("loginMessage", `Registreren mislukt: ${error.message}`, true);
 
     if (data?.session) {
       await refreshAuth();
     } else {
       setAuthTab("login");
       el("loginEmail").value = email;
-      setMessage("loginMessage", "✅ Account aangemaakt. Bevestig eventueel eerst de e-mail en log daarna in.");
+      setMessage("loginMessage", "✅ Account aangemaakt. Bevestig eventueel eerst je e-mail.");
     }
-  }
-
-  function cleanCode(value) {
-    return value.trim().toUpperCase();
-  }
-
-  async function createTribe() {
-    const name = el("createTribeName").value.trim();
-    const code = cleanCode(el("createTribeCode").value);
-
-    if (name.length < 2) {
-      setMessage("tribeMessage", "Vul een geldige groepsnaam in.", true);
-      return;
-    }
-    if (!/^[A-Z0-9-]{4,24}$/.test(code)) {
-      setMessage("tribeMessage", "De code moet 4–24 tekens bevatten: letters, cijfers of een streepje.", true);
-      return;
-    }
-
-    el("createTribeButton").disabled = true;
-    setMessage("tribeMessage", "Groep wordt aangemaakt…");
-
-    const { data, error } = await client.rpc("create_tribe", {
-      p_name: name,
-      p_join_code: code
-    });
-
-    el("createTribeButton").disabled = false;
-
-    if (error) {
-      const msg = error.message?.includes("duplicate") || error.message?.includes("bestaat")
-        ? "Deze koppelcode bestaat al. Kies een andere code."
-        : error.message;
-      setMessage("tribeMessage", `Aanmaken mislukt: ${msg}`, true);
-      return;
-    }
-
-    setMessage("tribeMessage", `✅ Groep gemaakt met code ${code}.`);
-    await refreshAuth();
-  }
-
-  async function joinTribe() {
-    const code = cleanCode(el("joinTribeCode").value);
-
-    if (!/^[A-Z0-9-]{4,24}$/.test(code)) {
-      setMessage("tribeMessage", "Vul een geldige koppelcode in.", true);
-      return;
-    }
-
-    el("joinTribeButton").disabled = true;
-    setMessage("tribeMessage", "Bezig met koppelen…");
-
-    const { data, error } = await client.rpc("join_tribe", {
-      p_join_code: code
-    });
-
-    el("joinTribeButton").disabled = false;
-
-    if (error) {
-      setMessage("tribeMessage", `Koppelen mislukt: ${error.message}`, true);
-      return;
-    }
-
-    setMessage("tribeMessage", "✅ Je bent aan de stamgroep gekoppeld.");
-    await refreshAuth();
   }
 
   async function logout() {
     await client.auth.signOut();
-    activeUser = null;
-    activeProfile = null;
-    activeTribe = null;
     showOnly("login");
+  }
+
+  async function createGameAccount() {
+    const name = el("createGameAccountName").value.trim();
+    if (name.length < 2) return setMessage("accountSetupMessage", "Vul een geldige TW-accountnaam in.", true);
+
+    const { error } = await client.rpc("create_game_account", { p_name: name });
+    if (error) return setMessage("accountSetupMessage", error.message, true);
+
+    el("createGameAccountName").value = "";
+    setMessage("accountSetupMessage", "✅ TW-account aangemaakt.");
+    await refreshData();
+  }
+
+  async function requestGameAccount() {
+    const name = el("requestGameAccountName").value.trim();
+    if (name.length < 2) return setMessage("accountSetupMessage", "Vul de exacte accountnaam in.", true);
+
+    const { error } = await client.rpc("request_game_account_access", { p_account_name: name });
+    if (error) return setMessage("accountSetupMessage", error.message, true);
+
+    el("requestGameAccountName").value = "";
+    setMessage("accountSetupMessage", "✅ Verzoek verstuurd naar de eigenaar.");
+    await renderRequests();
+  }
+
+  async function createTribe() {
+    if (!activeGameAccountId) return setMessage("tribeSetupMessage", "Kies eerst een TW-account.", true);
+
+    const world = el("createTribeWorld").value.trim().toUpperCase();
+    const name = el("createTribeName").value.trim();
+    if (!world || name.length < 2) return setMessage("tribeSetupMessage", "Vul wereld en stamnaam in.", true);
+
+    const { error } = await client.rpc("create_tribe_for_account", {
+      p_game_account_id: activeGameAccountId,
+      p_world_code: world,
+      p_name: name
+    });
+    if (error) return setMessage("tribeSetupMessage", error.message, true);
+
+    el("createTribeName").value = "";
+    setMessage("tribeSetupMessage", "✅ Stam aangemaakt en account gekoppeld.");
+    await refreshData();
+  }
+
+  async function requestTribe() {
+    if (!activeGameAccountId) return setMessage("tribeSetupMessage", "Kies eerst een TW-account.", true);
+
+    const world = el("requestTribeWorld").value.trim().toUpperCase();
+    const name = el("requestTribeName").value.trim();
+    if (!world || name.length < 2) return setMessage("tribeSetupMessage", "Vul wereld en exacte stamnaam in.", true);
+
+    const { error } = await client.rpc("request_tribe_join", {
+      p_game_account_id: activeGameAccountId,
+      p_world_code: world,
+      p_tribe_name: name
+    });
+    if (error) return setMessage("tribeSetupMessage", error.message, true);
+
+    el("requestTribeName").value = "";
+    setMessage("tribeSetupMessage", "✅ Stamverzoek verstuurd naar de eigenaar.");
+    await renderRequests();
   }
 
   function summary(rows) {
@@ -245,30 +434,24 @@
     const state = el("uploadState");
     const button = el("uploadToTribe");
 
-    if (!activeUser || !activeProfile?.tribe_id) {
-      state.textContent = "Je bent niet aan een stamgroep gekoppeld.";
-      return;
-    }
-    if (typeof latestRows === "undefined" || !latestRows.length) {
-      state.textContent = "Bereken eerst je dorpen.";
-      return;
-    }
+    if (!activeGameAccountId) return state.textContent = "Kies eerst een TW-account.";
+    if (!activeTribeId) return state.textContent = "Kies eerst een stam.";
+    if (typeof latestRows === "undefined" || !latestRows.length) return state.textContent = "Bereken eerst je dorpen.";
 
     const rows = latestRows.filter(r => Number.isFinite(r.total) && Number.isFinite(r.halfTotal));
-    if (!rows.length) {
-      state.textContent = "Geen geldige off-dorpen gevonden.";
-      return;
-    }
+    if (!rows.length) return state.textContent = "Geen geldige off-dorpen gevonden.";
 
     button.disabled = true;
     state.textContent = `Bezig met ${rows.length} dorpen uploaden…`;
 
     try {
       const now = new Date().toISOString();
+      const worldCode = tribes.find(t => t.id === activeTribeId)?.world_code || DEFAULT_WORLD;
       const base = {
         user_id: activeUser.id,
-        tribe_id: activeProfile.tribe_id,
-        world: WORLD
+        game_account_id: activeGameAccountId,
+        tribe_id: activeTribeId,
+        world_code: worldCode
       };
 
       const { error: statusError } = await client
@@ -277,8 +460,7 @@
           ...base,
           ...summary(rows),
           updated_at: now
-        }, { onConflict: "user_id,world" });
-
+        }, { onConflict: "game_account_id,tribe_id,world_code" });
       if (statusError) throw statusError;
 
       const records = rows.map(r => ({
@@ -294,33 +476,25 @@
 
       const { error: uploadError } = await client
         .from("clear_villages")
-        .upsert(records, { onConflict: "user_id,world,coord" });
-
+        .upsert(records, { onConflict: "game_account_id,tribe_id,world_code,coord" });
       if (uploadError) throw uploadError;
 
       const currentCoords = new Set(records.map(r => r.coord));
       const { data: oldRows, error: oldError } = await client
         .from("clear_villages")
         .select("id,coord")
-        .eq("user_id", activeUser.id)
-        .eq("world", WORLD);
-
+        .eq("game_account_id", activeGameAccountId)
+        .eq("tribe_id", activeTribeId)
+        .eq("world_code", worldCode);
       if (oldError) throw oldError;
 
-      const staleIds = (oldRows || [])
-        .filter(r => !currentCoords.has(r.coord))
-        .map(r => r.id);
-
+      const staleIds = (oldRows || []).filter(r => !currentCoords.has(r.coord)).map(r => r.id);
       if (staleIds.length) {
-        const { error: deleteError } = await client
-          .from("clear_villages")
-          .delete()
-          .in("id", staleIds);
-
+        const { error: deleteError } = await client.from("clear_villages").delete().in("id", staleIds);
         if (deleteError) throw deleteError;
       }
 
-      state.textContent = `✅ ${rows.length} dorpen geüpload als ${activeProfile.player_name}.`;
+      state.textContent = `✅ ${rows.length} dorpen geüpload.`;
     } catch (error) {
       console.error(error);
       state.textContent = `Upload mislukt: ${error.message || "onbekende fout"}`;
@@ -329,22 +503,45 @@
     }
   }
 
-  el("showLoginTab").addEventListener("click", () => setAuthTab("login"));
-  el("showRegisterTab").addEventListener("click", () => setAuthTab("register"));
-  el("loginButton").addEventListener("click", login);
-  el("registerButton").addEventListener("click", register);
-  el("loginPassword").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
-  el("registerPassword2").addEventListener("keydown", e => { if (e.key === "Enter") register(); });
-  el("createTribeButton").addEventListener("click", createTribe);
-  el("joinTribeButton").addEventListener("click", joinTribe);
-  el("logoutButton").addEventListener("click", logout);
-  el("tribeLogoutButton").addEventListener("click", logout);
-  el("uploadToTribe").addEventListener("click", upload);
+  el("showLoginTab").onclick = () => setAuthTab("login");
+  el("showRegisterTab").onclick = () => setAuthTab("register");
+  el("loginButton").onclick = login;
+  el("registerButton").onclick = register;
+  el("loginPassword").onkeydown = e => { if (e.key === "Enter") login(); };
+  el("registerPassword2").onkeydown = e => { if (e.key === "Enter") register(); };
 
-  client.auth.onAuthStateChange(() => {
-    setTimeout(() => refreshAuth().catch(console.error), 0);
-  });
+  el("setupLogoutButton").onclick = logout;
+  el("logoutButton").onclick = logout;
+  el("openSetupButton").onclick = () => {
+    renderSetupAccounts();
+    renderSetupTribes();
+    renderRequests();
+    showOnly("setup");
+  };
+  el("continueToCalculator").onclick = () => {
+    renderAccountSelectors();
+    showOnly("app");
+  };
 
+  el("createGameAccountButton").onclick = createGameAccount;
+  el("requestGameAccountButton").onclick = requestGameAccount;
+  el("createTribeButton").onclick = createTribe;
+  el("requestTribeButton").onclick = requestTribe;
+  el("uploadToTribe").onclick = upload;
+
+  el("activeGameAccountSelect").onchange = async event => {
+    activeGameAccountId = event.target.value || null;
+    localStorage.setItem("tw_active_game_account", activeGameAccountId || "");
+    await loadTribes();
+    renderAccountSelectors();
+  };
+
+  el("activeTribeSelect").onchange = event => {
+    activeTribeId = event.target.value || null;
+    localStorage.setItem("tw_active_tribe", activeTribeId || "");
+  };
+
+  client.auth.onAuthStateChange(() => setTimeout(() => refreshAuth().catch(console.error), 0));
   refreshAuth().catch(error => {
     console.error(error);
     setMessage("loginMessage", "Kon je sessie niet laden.", true);

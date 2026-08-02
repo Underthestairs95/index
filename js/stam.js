@@ -1,8 +1,11 @@
 (() => {
   const client = window.supabaseClient;
-  const WORLD = 116;
   const status = document.getElementById("status");
   const players = document.getElementById("players");
+  const tribeSelect = document.getElementById("tribeSelect");
+
+  let availableTribes = [];
+  let activeTribeId = null;
 
   const age = iso => {
     const d = Date.now() - new Date(iso).getTime();
@@ -31,55 +34,67 @@
     setTimeout(() => button.textContent = old, 1500);
   }
 
-  async function load() {
-    const { data: auth } = await client.auth.getUser();
-    if (!auth?.user) {
-      location.href = "index.html";
-      return;
-    }
+  async function loadAccessibleTribes(userId) {
+    const { data: memberships, error } = await client
+      .from("game_account_members")
+      .select("game_account_id")
+      .eq("user_id", userId);
+    if (error) throw error;
 
-    const { data: ownProfile, error: ownError } = await client
-      .from("profiles")
-      .select("id,player_name,tribe_id")
-      .eq("id", auth.user.id)
-      .single();
+    const accountIds = (memberships || []).map(x => x.game_account_id);
+    if (!accountIds.length) return [];
 
-    if (ownError) throw ownError;
-    if (!ownProfile.tribe_id) {
-      location.href = "index.html";
-      return;
-    }
-
-    const { data: tribe, error: tribeError } = await client
-      .from("tribes")
-      .select("id,name,join_code")
-      .eq("id", ownProfile.tribe_id)
-      .single();
-
+    const { data, error: tribeError } = await client
+      .from("tribe_accounts")
+      .select("tribes(id,name,world_code),game_account_id")
+      .in("game_account_id", accountIds);
     if (tribeError) throw tribeError;
-    document.getElementById("tribeName").textContent = `${tribe.name} · code ${tribe.join_code}`;
 
-    const [p, s, v] = await Promise.all([
-      client.from("profiles").select("id,player_name,tribe_id").eq("tribe_id", ownProfile.tribe_id),
-      client.from("clear_status").select("*").eq("tribe_id", ownProfile.tribe_id).eq("world", WORLD).order("updated_at", { ascending: false }),
-      client.from("clear_villages").select("*").eq("tribe_id", ownProfile.tribe_id).eq("world", WORLD)
-    ]);
+    const unique = new Map();
+    (data || []).forEach(row => {
+      if (row.tribes) unique.set(row.tribes.id, row.tribes);
+    });
+    return [...unique.values()].sort((a, b) =>
+      `${a.world_code} ${a.name}`.localeCompare(`${b.world_code} ${b.name}`)
+    );
+  }
 
-    if (p.error || s.error || v.error) throw p.error || s.error || v.error;
+  async function renderTribe() {
+    if (!activeTribeId) {
+      status.textContent = "Geen stam geselecteerd.";
+      players.innerHTML = "";
+      return;
+    }
 
-    const profileMap = Object.fromEntries((p.data || []).map(x => [x.id, x]));
+    const tribe = availableTribes.find(t => t.id === activeTribeId);
+    document.getElementById("tribeName").textContent = `${tribe.world_code} · ${tribe.name}`;
+
+    const [{ data: statuses, error: statusError }, { data: villages, error: villageError }, { data: accounts, error: accountError }] =
+      await Promise.all([
+        client.from("clear_status").select("*").eq("tribe_id", activeTribeId).order("updated_at", { ascending: false }),
+        client.from("clear_villages").select("*").eq("tribe_id", activeTribeId),
+        client.from("tribe_accounts").select("game_account_id,game_accounts(id,name)").eq("tribe_id", activeTribeId)
+      ]);
+
+    if (statusError || villageError || accountError) throw statusError || villageError || accountError;
+
+    const accountMap = {};
+    (accounts || []).forEach(row => {
+      if (row.game_accounts) accountMap[row.game_account_id] = row.game_accounts;
+    });
+
     const villageMap = {};
-    (v.data || []).forEach(x => (villageMap[x.user_id] ??= []).push(x));
+    (villages || []).forEach(v => (villageMap[v.game_account_id] ??= []).push(v));
 
-    status.textContent = (s.data || []).length
-      ? `${s.data.length} spelers met een upload.`
+    status.textContent = (statuses || []).length
+      ? `${statuses.length} TW-accounts met een upload.`
       : "Nog geen uploads.";
 
     players.innerHTML = "";
 
-    (s.data || []).forEach(x => {
-      const profile = profileMap[x.user_id] || { player_name: "Onbekend" };
-      const rows = villageMap[x.user_id] || [];
+    (statuses || []).forEach(s => {
+      const account = accountMap[s.game_account_id] || { name: "Onbekend account" };
+      const rows = villageMap[s.game_account_id] || [];
       const text = exportText(rows);
       const full = rows.filter(r => r.total_seconds <= 86400).length;
       const half = rows.filter(r => r.total_seconds > 86400 && r.half_total_seconds <= 259200).length;
@@ -89,8 +104,8 @@
       card.innerHTML = `
         <div class="head">
           <div>
-            <h2 style="margin:0">${profile.player_name}</h2>
-            <div class="muted">${rows.length} dorpen · ${age(x.updated_at)}</div>
+            <h2 style="margin:0">${account.name}</h2>
+            <div class="muted">${rows.length} dorpen · ${age(s.updated_at)}</div>
           </div>
           <div>
             <button class="alt toggle">Bekijk coords</button>
@@ -100,24 +115,53 @@
         <div class="stats">
           <div class="stat"><b>${full}</b><small>Full &lt; 1 dag</small></div>
           <div class="stat"><b>${half}</b><small>Halve &lt; 3 dagen</small></div>
-          <div class="stat"><b>${x.ready}</b><small>Nu klaar</small></div>
-          <div class="stat"><b>${x.total_offs}</b><small>Totaal offs</small></div>
+          <div class="stat"><b>${s.ready}</b><small>Nu klaar</small></div>
+          <div class="stat"><b>${s.total_offs}</b><small>Totaal offs</small></div>
         </div>
         <div class="coords"></div>
       `;
 
       const box = card.querySelector(".coords");
       box.textContent = text;
-
       card.querySelector(".toggle").onclick = event => {
         const open = box.style.display === "block";
         box.style.display = open ? "none" : "block";
         event.currentTarget.textContent = open ? "Bekijk coords" : "Verberg coords";
       };
-
       card.querySelector(".copy").onclick = event => copy(text, event.currentTarget);
       players.appendChild(card);
     });
+  }
+
+  async function load() {
+    const { data: auth } = await client.auth.getUser();
+    if (!auth?.user) {
+      location.href = "index.html";
+      return;
+    }
+
+    availableTribes = await loadAccessibleTribes(auth.user.id);
+    if (!availableTribes.length) {
+      status.textContent = "Je hebt nog geen toegang tot een stam.";
+      return;
+    }
+
+    activeTribeId = localStorage.getItem("tw_active_tribe");
+    if (!availableTribes.some(t => t.id === activeTribeId)) {
+      activeTribeId = availableTribes[0].id;
+    }
+
+    tribeSelect.innerHTML = availableTribes
+      .map(t => `<option value="${t.id}">${t.world_code} · ${t.name}</option>`)
+      .join("");
+    tribeSelect.value = activeTribeId;
+    tribeSelect.onchange = async event => {
+      activeTribeId = event.target.value;
+      localStorage.setItem("tw_active_tribe", activeTribeId);
+      await renderTribe();
+    };
+
+    await renderTribe();
   }
 
   document.getElementById("logout").onclick = async () => {
