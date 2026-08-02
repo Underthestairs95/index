@@ -151,6 +151,7 @@
       activeTribeId = availableTribes[0].id;
     }
 
+    if (!tribeSelect) throw new Error("Stamkeuzelijst ontbreekt in stam.html.");
     tribeSelect.innerHTML = availableTribes
       .map(t => `<option value="${t.id}">${t.world_code} · ${t.name}</option>`)
       .join("");

@@ -8,6 +8,7 @@
   let activeGameAccountId = null;
   let tribes = [];
   let activeTribeId = null;
+  let activeTribeSecret = null;
 
   const el = id => document.getElementById(id);
 
@@ -143,10 +144,36 @@
       gameAccounts.find(a => a.id === activeGameAccountId)?.name || "—";
   }
 
+  async function loadActiveTribeSecret() {
+    activeTribeSecret = null;
+    const tribe = tribes.find(t => t.id === activeTribeId);
+    const settings = el("tribeOwnerSettings");
+
+    if (!tribe || tribe.account_role !== "owner") {
+      settings.classList.add("hidden");
+      return;
+    }
+
+    const { data, error } = await client.rpc("get_tribe_security_code", {
+      p_tribe_id: activeTribeId
+    });
+
+    if (error) {
+      console.error(error);
+      settings.classList.add("hidden");
+      return;
+    }
+
+    activeTribeSecret = data || "";
+    el("currentTribeSecurityCode").textContent = activeTribeSecret || "Nog geen code";
+    settings.classList.remove("hidden");
+  }
+
   function renderSetupTribes() {
     const list = el("myTribes");
     if (!tribes.length) {
       list.innerHTML = '<div class="muted">Dit TW-account is nog niet aan een stam gekoppeld.</div>';
+      el("tribeOwnerSettings").classList.add("hidden");
       return;
     }
 
@@ -161,13 +188,16 @@
     `).join("");
 
     list.querySelectorAll(".choose-tribe").forEach(button => {
-      button.onclick = () => {
+      button.onclick = async () => {
         activeTribeId = button.dataset.id;
         localStorage.setItem("tw_active_tribe", activeTribeId);
         renderSetupTribes();
         renderAccountSelectors();
+        await loadActiveTribeSecret();
       };
     });
+
+    loadActiveTribeSecret();
   }
 
   async function renderRequests() {
@@ -404,16 +434,21 @@
 
     const world = el("requestTribeWorld").value.trim().toUpperCase();
     const name = el("requestTribeName").value.trim();
-    if (!world || name.length < 2) return setMessage("tribeSetupMessage", "Vul wereld en exacte stamnaam in.", true);
+    const code = el("requestTribeCode").value.trim();
+    if (!world || name.length < 2 || code.length < 4) {
+      return setMessage("tribeSetupMessage", "Vul wereld, exacte stamnaam en beveiligingscode in.", true);
+    }
 
     const { error } = await client.rpc("request_tribe_join", {
       p_game_account_id: activeGameAccountId,
       p_world_code: world,
-      p_tribe_name: name
+      p_tribe_name: name,
+      p_security_code: code
     });
     if (error) return setMessage("tribeSetupMessage", error.message, true);
 
     el("requestTribeName").value = "";
+    el("requestTribeCode").value = "";
     setMessage("tribeSetupMessage", "✅ Stamverzoek verstuurd naar de eigenaar.");
     await renderRequests();
   }
@@ -509,6 +544,31 @@
     }
   }
 
+
+  async function setTribeSecurityCode(code) {
+    if (!activeTribeId) return setMessage("tribeSetupMessage", "Kies eerst een stam.", true);
+    if (!/^[A-Za-z0-9_-]{4,32}$/.test(code)) {
+      return setMessage("tribeSetupMessage", "Gebruik 4–32 letters, cijfers, _ of -.", true);
+    }
+
+    const { error } = await client.rpc("set_tribe_security_code", {
+      p_tribe_id: activeTribeId,
+      p_security_code: code
+    });
+
+    if (error) return setMessage("tribeSetupMessage", error.message, true);
+
+    el("customTribeSecurityCode").value = "";
+    setMessage("tribeSetupMessage", "✅ Beveiligingscode aangepast.");
+    await loadActiveTribeSecret();
+  }
+
+  function randomSecurityCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const part = () => Array.from({length: 4}, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    return `${part()}-${part()}-${part()}`;
+  }
+
   el("showLoginTab").onclick = () => setAuthTab("login");
   el("showRegisterTab").onclick = () => setAuthTab("register");
   el("loginButton").onclick = login;
@@ -517,6 +577,7 @@
   el("registerPassword2").onkeydown = e => { if (e.key === "Enter") register(); };
 
   el("setupLogoutButton").onclick = logout;
+  el("setupToCalculatorButton").onclick = () => showOnly("app");
   el("logoutButton").onclick = logout;
   el("openSetupButton").onclick = () => {
     renderSetupAccounts();
@@ -534,6 +595,18 @@
   el("createTribeButton").onclick = createTribe;
   el("requestTribeButton").onclick = requestTribe;
   el("uploadToTribe").onclick = upload;
+  el("copyTribeSecurityCode").onclick = async () => {
+    if (!activeTribeSecret) return;
+    await navigator.clipboard.writeText(activeTribeSecret);
+    setMessage("tribeSetupMessage", "Code gekopieerd.");
+  };
+  el("generateTribeSecurityCode").onclick = () => {
+    const code = randomSecurityCode();
+    el("customTribeSecurityCode").value = code;
+    setTribeSecurityCode(code);
+  };
+  el("saveTribeSecurityCode").onclick = () =>
+    setTribeSecurityCode(el("customTribeSecurityCode").value.trim());
 
   el("activeGameAccountSelect").onchange = async event => {
     activeGameAccountId = event.target.value || null;
