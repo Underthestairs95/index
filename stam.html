@@ -56,6 +56,14 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 @media(max-width:760px){.summary{grid-template-columns:repeat(3,minmax(90px,1fr))}}
 @media(max-width:480px){.summary{grid-template-columns:repeat(2,minmax(90px,1fr))}}
 
+
+.troop-source{display:inline-flex;align-items:center;gap:6px;margin-top:5px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}
+.troop-source.exact{background:#173d29;color:#c7f6d6;border:1px solid #2f6b49}
+.troop-source.estimate{background:#4a3a18;color:#ffe5a3;border:1px solid #765e25}
+.troop-source.stale{background:#4a2424;color:#ffd1cc;border:1px solid #773c38}
+.troop-overview-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.troop-freshness{display:flex;gap:8px;flex-wrap:wrap}
+
 </style>
 </head>
 <body>
@@ -147,12 +155,16 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
   </section>
 
   <section id="troopsView" class="panel hidden">
-    <div class="player-head">
+    <div class="troop-overview-head">
       <div>
-        <h2>Troepentotalen</h2>
-        <div class="muted">Huidige troepen uit de laatst geüploade gecombineerde exports, inclusief edelmannen.</div>
+        <h2>Troepentotalen — in bezit</h2>
+        <div class="muted">Exacte totalen uit het troepenoverzicht, inclusief onderweg en ondersteuning. Gele regels gebruiken nog de gecombineerde fallback.</div>
       </div>
-      <button id="copyTroopTotals" class="alt">Kopieer totalen</button>
+      <div class="troop-freshness">
+        <span id="exactTroopCount" class="troop-source exact">0 exacte uploads</span>
+        <span id="estimatedTroopCount" class="troop-source estimate">0 fallback</span>
+        <button id="copyTroopTotals" class="alt">Kopieer totalen</button>
+      </div>
     </div>
 
     <div id="tribeTroopSummary" class="summary" style="margin-top:12px"></div>
@@ -161,7 +173,7 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
       <table class="planner-table">
         <thead>
           <tr>
-            <th>TW-account</th>
+            <th>TW-account</th><th>Bron / bijgewerkt</th>
             <th>Speer</th><th>Zwaard</th><th>Bijl</th><th>Boog</th>
             <th>Verkenner</th><th>LC</th><th>Bereden boog</th><th>ZC</th>
             <th>Ram</th><th>Kata</th><th>Ridder</th><th>Edelman</th>
@@ -175,6 +187,6 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=9"></script>
-<script src="js/stam.js?v=30"></script>
+<script src="js/stam.js?v=41"></script>
 </body>
 </html>
