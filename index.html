@@ -145,6 +145,23 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
 #combined,#buildings{min-height:140px!important}
 @media(max-width:900px){#appView.wrap{width:96vw;padding:12px}}
 
+/* Exacte troepenimport */
+.export-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.export-step{background:linear-gradient(180deg,#14232e,#101b23);border:1px solid var(--line-soft,#294050);border-radius:13px;padding:13px}
+.export-step label{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.step-number{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:8px;background:var(--accent);color:#251807;font-size:12px;font-weight:900}
+.exact-import-panel{margin-top:12px;background:linear-gradient(180deg,#14242f,#101b23);border:1px solid #375365;border-radius:14px;padding:14px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.exact-import-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.exact-import-head h2{font-size:18px;margin:0 0 3px}
+.import-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:#243847;border:1px solid #3a5566;color:#cfe0eb;font-size:12px;font-weight:800}
+.import-badge.good{background:#173d29;border-color:#2f6b49;color:#c7f6d6}
+.import-badge.warn{background:#4a3a18;border-color:#765e25;color:#ffe5a3}
+.exact-import-panel textarea{min-height:105px!important}
+.exact-hint{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.exact-hint div{padding:9px 10px;border-radius:9px;background:#0d1820;border:1px solid #263d4b;color:var(--muted);font-size:12px}
+@media(max-width:1080px){.export-grid{grid-template-columns:1fr 1fr}.export-step:last-child{grid-column:1/-1}}
+@media(max-width:720px){.export-grid,.exact-hint{grid-template-columns:1fr}.export-step:last-child{grid-column:auto}}
+
 </style>
 </head>
 <body class="compact">
@@ -305,9 +322,9 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
   <div class="f12-content">
     <p class="muted">Elke code maakt compacte JSON en kopieert die automatisch naar je klembord. Daarna plak je de JSON hieronder.</p>
 
-    <div class="grid">
-    <div>
-      <label>1. Gecombineerd-overzicht</label>
+    <div class="export-grid">
+    <div class="export-step">
+      <label><span class="step-number">1</span> Gecombineerd-overzicht</label>
       <ol>
         <li>Ga naar <b>Overzichten → Gecombineerd</b>.</li>
         <li>Druk op <b>F12 → Console</b>.</li>
@@ -392,8 +409,8 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
       </div>
     </div>
 
-    <div>
-      <label>2. Gebouwenoverzicht</label>
+    <div class="export-step">
+      <label><span class="step-number">2</span> Gebouwenoverzicht</label>
       <ol>
         <li>Ga naar <b>Overzichten → Gebouwen</b>.</li>
         <li>Druk op <b>F12 → Console</b>.</li>
@@ -450,13 +467,98 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
         <button class="alt" type="button" onclick="copyCode('codeBuildings')">F12-code kopiëren</button>
       </div>
     </div>
+
+    <div class="export-step">
+      <label><span class="step-number">3</span> Troepenoverzicht — in bezit</label>
+      <ol>
+        <li>Open het <b>troepenoverzicht met spelers en totalen</b>.</li>
+        <li>Druk op <b>F12 → Console</b>.</li>
+        <li>Voer deze code uit. Alle zichtbare spelers worden gekopieerd.</li>
+      </ol>
+      <textarea id="codeTroopTotals" readonly style="min-height:260px">(() => {
+  const unitKeys = [
+    'spear','sword','axe','archer','spy','light',
+    'marcher','heavy','ram','catapult','knight','snob'
+  ];
+
+  const num = value =>
+    Number(String(value || '0').replace(/\./g, '').replace(/[^\d-]/g, '')) || 0;
+
+  const unitFromImage = img => {
+    const source = `${img?.getAttribute('src') || ''} ${img?.dataset?.title || ''} ${img?.getAttribute('alt') || ''}`;
+    return unitKeys.find(key => new RegExp(`(?:unit[_/-])?${key}(?:\\.|_|/|\\b)`, 'i').test(source)) || null;
+  };
+
+  const tables = [...document.querySelectorAll('table')];
+  const candidate = tables
+    .map(table => {
+      const headerRows = [...table.querySelectorAll('tr')];
+      const header = headerRows.find(row =>
+        [...row.cells].filter(cell => unitFromImage(cell.querySelector('img'))).length >= 8
+      );
+      return { table, header };
+    })
+    .find(item => item.header);
+
+  if (!candidate) throw new Error('Troepenoverzicht-tabel niet gevonden');
+
+  const { table, header } = candidate;
+  const unitColumns = {};
+
+  [...header.cells].forEach((cell, index) => {
+    const unit = unitFromImage(cell.querySelector('img'));
+    if (unit) unitColumns[unit] = index;
+  });
+
+  const players = [...table.querySelectorAll('tr')]
+    .filter(row => row !== header)
+    .map(row => {
+      const cells = [...row.cells];
+      if (!cells.length) return null;
+
+      const name = String(cells[0]?.textContent || '').trim();
+      if (!name || /samenvatting|summary|totaal/i.test(name)) return null;
+
+      const units = {};
+      unitKeys.forEach(key => {
+        const index = unitColumns[key];
+        units[key] = index === undefined ? 0 : num(cells[index]?.textContent);
+      });
+
+      const foundUnits = Object.values(units).reduce((sum, value) => sum + value, 0);
+      if (!foundUnits && cells.length < 8) return null;
+
+      return {
+        name,
+        points: num(cells[1]?.textContent),
+        units
+      };
+    })
+    .filter(Boolean);
+
+  if (!players.length) throw new Error('Geen spelersregels gevonden');
+
+  const output = {
+    type: 'tw-account-troop-totals',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    players
+  };
+
+  copy(JSON.stringify(output));
+  console.log(`✅ Exacte troepentotalen van ${players.length} spelers gekopieerd`);
+})();</textarea>
+      <div class="actions" style="margin:10px 0 0">
+        <button class="alt" type="button" onclick="copyCode('codeTroopTotals')">F12-code kopiëren</button>
+      </div>
+    </div>
   </div>
 
     <p class="muted" style="margin-bottom:0">De consolecode kopieert de JSON-output zelf. Je hoeft dus geen lange tabel meer te selecteren.</p>
   </div>
 </div>
 
-  <p class="muted" style="margin:4px 0 8px">Na uitvoeren staat de tabel op je klembord. Plak Gecombineerd links en Gebouwen rechts.</p>
+  <p class="muted" style="margin:4px 0 8px">Plak Gecombineerd en Gebouwen voor de bouwtijd. Plak Troepentotalen voor de exacte aantallen in bezit.</p>
 </div>
 
 
@@ -468,6 +570,26 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
   <div class="panel">
     <label>2. Gebouwen-JSON plakken</label>
     <div class="actions" style="margin:0 0 8px"><button class="alt" type="button" onclick="pasteInto('buildings')">Plak van klembord</button></div><textarea id="buildings" placeholder='Plak hier JSON met type "tw-clear-buildings"'></textarea>
+  </div>
+</div>
+
+<div class="exact-import-panel">
+  <div class="exact-import-head">
+    <div>
+      <h2>3. Exacte troepentotalen</h2>
+      <div class="muted">Leest alle troepen in bezit, dus ook troepen die onderweg zijn of elders ondersteunen.</div>
+    </div>
+    <span id="troopImportBadge" class="import-badge warn">Nog niet geplakt</span>
+  </div>
+  <div class="actions" style="margin:0 0 8px">
+    <button class="alt" type="button" onclick="pasteInto('troopTotalsExact')">Plak troepentotalen</button>
+    <button class="alt" id="clearTroopTotals" type="button">Troepenimport wissen</button>
+  </div>
+  <textarea id="troopTotalsExact" placeholder='Plak hier JSON met type "tw-account-troop-totals"'></textarea>
+  <div id="troopImportInfo" class="exact-hint">
+    <div><b>Bron</b><br>Troepenoverzicht “in bezit”</div>
+    <div><b>Koppeling</b><br>Automatisch op actieve TW-accountnaam</div>
+    <div><b>Fallback</b><br>Zonder deze export gebruikt de tool aanwezige troepen</div>
   </div>
 </div>
 
@@ -502,7 +624,7 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
     <button id="uploadToTribe" class="good" type="button">Upload naar stam</button>
     <span id="uploadState" class="muted">Bereken eerst je dorpen.</span>
   </div>
-  <p class="muted">Alleen speler, dorpsnaam, coord en berekende bouwtijd worden opgeslagen. Je geplakte JSON blijft lokaal.</p>
+  <p class="muted">Dorpsnamen, coords, bouwtijden en de gekozen troepentotalen worden opgeslagen. De geplakte JSON zelf blijft lokaal.</p>
 </div>
 <p class="compact-note">Compacte weergave: alleen dorp en totale resterende bouwtijd. Gebruik “Toon details” voor alle berekeningen.</p><div class="tablewrap"><table id="result"><thead></thead><tbody></tbody></table></div>
 
@@ -880,12 +1002,14 @@ function load(){
   // Altijd schoon openen; ook oude opgeslagen JSON of foutief geplakte tekst verwijderen.
   $('#combined').value = '';
   $('#buildings').value = '';
+  $('#troopTotalsExact').value = '';
 }
 
 function clearAll(){
   localStorage.removeItem('tw_clear_offline');
   $('#combined').value = '';
   $('#buildings').value = '';
+  $('#troopTotalsExact').value = '';
   $('#result thead').innerHTML = '';
   $('#result tbody').innerHTML = '';
   $('#cards').innerHTML = '';
@@ -901,6 +1025,65 @@ $('#toggleDetails').onclick=()=>{
   document.body.classList.toggle('compact');
   $('#toggleDetails').textContent=document.body.classList.contains('compact')?'Toon details':'Verberg details';
 };
+
+
+function normalizeAccountName(value){
+  return String(value || '')
+    .toLocaleLowerCase('nl-NL')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function previewExactTroops(){
+  const field = $('#troopTotalsExact');
+  const badge = $('#troopImportBadge');
+  const info = $('#troopImportInfo');
+  const text = field.value.trim();
+
+  if(!text){
+    badge.className='import-badge warn';
+    badge.textContent='Nog niet geplakt';
+    info.innerHTML=`
+      <div><b>Bron</b><br>Troepenoverzicht “in bezit”</div>
+      <div><b>Koppeling</b><br>Automatisch op actieve TW-accountnaam</div>
+      <div><b>Fallback</b><br>Zonder deze export gebruikt de tool aanwezige troepen</div>`;
+    return;
+  }
+
+  try{
+    const data=JSON.parse(text);
+    if(data.type!=='tw-account-troop-totals' || !Array.isArray(data.players)){
+      throw new Error('Verkeerd exporttype');
+    }
+
+    const activeName=$('#activeGameAccountSelect')?.selectedOptions?.[0]?.textContent || '';
+    const wanted=normalizeAccountName(activeName);
+    const match=data.players.find(player=>normalizeAccountName(player.name)===wanted);
+
+    badge.className=match?'import-badge good':'import-badge warn';
+    badge.textContent=match?`Exact: ${match.name}`:`${data.players.length} spelers gevonden`;
+
+    const exported=data.exportedAt ? new Date(data.exportedAt).toLocaleString('nl-NL') : 'onbekend';
+    info.innerHTML=`
+      <div><b>Spelers gevonden</b><br>${data.players.length}</div>
+      <div><b>Actieve account</b><br>${match ? match.name : 'geen exacte match'}</div>
+      <div><b>Exporttijd</b><br>${exported}</div>`;
+  }catch(error){
+    badge.className='import-badge warn';
+    badge.textContent='Ongeldige troepen-JSON';
+    info.innerHTML=`
+      <div><b>Controle</b><br>Gebruik de derde F12-code</div>
+      <div><b>Fout</b><br>${error.message}</div>
+      <div><b>Upload</b><br>Wordt geblokkeerd bij ongeldige JSON</div>`;
+  }
+}
+
+$('#troopTotalsExact').addEventListener('input',previewExactTroops);
+$('#clearTroopTotals').onclick=()=>{
+  $('#troopTotalsExact').value='';
+  previewExactTroops();
+};
+$('#activeGameAccountSelect')?.addEventListener('change',previewExactTroops);
+previewExactTroops();
 
 const f12Panel = $('#f12Panel');
 const toggleF12Panel = $('#toggleF12Panel');
@@ -923,5 +1106,5 @@ load();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=5"></script>
-<script src="js/clear-stam.js?v=9"></script>
+<script src="js/clear-stam.js?v=41"></script>
 </body></html>
