@@ -1,26 +1,115 @@
 <!doctype html>
-<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Clear Stamoverzicht</title>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TW Clear Stamdashboard</title>
 <style>
-:root{--bg:#0f1720;--panel:#18232f;--panel2:#202f3d;--text:#eef5fa;--muted:#9fb1c0;--line:#314454;--accent:#f0b44d;--good:#52c878;--bad:#ed6a5a}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#0d141b,#14202a);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}.wrap{max-width:1200px;margin:auto;padding:24px}h1{margin:0 0 6px}.muted{color:var(--muted)}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.panel{background:rgba(24,35,47,.97);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-top:12px}.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}.stat b{display:block;font-size:21px}.stat small{color:var(--muted)}button{border:0;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer;background:var(--accent);color:#221708}button.alt{background:#2e4353;color:#eef5fa}.coords{display:none;white-space:pre-wrap;background:#0d151d;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px;font:13px/1.5 Consolas,monospace}.status{padding:11px 14px;border-radius:9px;background:#21313e;margin-bottom:14px}.error{background:#4a2424;color:#ffd6d1}a{text-decoration:none}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
-</style></head><body>
+:root{
+  --bg:#0b1218;--panel:#121d27;--panel2:#192936;--text:#f4f7fa;--muted:#94a9b9;
+  --line:#2a4150;--accent:#f7b84a;--good:#5bd285;--warn:#f2c14e;--bad:#ef6b66;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top left,rgba(41,75,98,.15),transparent 34%),linear-gradient(180deg,#0b1218,#0d161e);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+.wrap{max-width:1260px;margin:0 auto;padding:26px 22px 44px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid rgba(76,106,124,.35)}
+h1{font-size:30px;letter-spacing:-.025em;margin:0 0 3px}
+h2{margin:0 0 8px}.muted{color:var(--muted)}
+button{border:0;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer;background:var(--accent);color:#221708;transition:.12s}
+button:hover{filter:brightness(1.06)}button:active{transform:translateY(1px)}
+button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f4f7fa}
+select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;background:#0b151d;color:var(--text)}
+.status{border:1px solid #2b4352;border-radius:11px;background:#1a2b38;padding:11px 13px;margin-bottom:14px}
+.error{background:#4a2424;color:#ffd6d1}
+.panel{background:linear-gradient(180deg,#14212b,#101b23);border:1px solid #293f4d;border-radius:16px;padding:16px;box-shadow:0 18px 42px rgba(0,0,0,.24);margin-bottom:14px}
+.filters{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px;align-items:end}
+.summary{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:10px}
+.stat{background:linear-gradient(180deg,#1a2b38,#162632);border:1px solid #314b5c;border-radius:11px;padding:12px}
+.stat b{font-size:24px;display:block}.stat small{color:var(--muted)}
+.player-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.player-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-top:12px}
+.coords{white-space:pre-wrap;background:#091219;border:1px solid #2b4352;border-radius:10px;padding:12px;margin-top:12px;font:13px/1.5 Consolas,monospace;display:none}
+.planner-table{width:100%;border-collapse:collapse}.planner-table th,.planner-table td{padding:10px;border-bottom:1px solid #243847;text-align:left}
+.planner-table th{color:#b9c9d4;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800}
+.badge.good{background:#173f2a;color:#bdf2ce}.badge.warn{background:#4a3b17;color:#ffe5a3}.badge.bad{background:#4a2424;color:#ffd1cc}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.tabs button.active{background:var(--accent);color:#221708}
+.hidden{display:none!important}
+@media(max-width:900px){.summary{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.player-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.wrap{padding:14px 9px 30px}.filters{grid-template-columns:1fr}.summary{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
 <div class="wrap">
   <div class="top">
     <div>
-      <h1>Clear Bouwtijd — Stamoverzicht</h1>
-      <div class="muted"><span id="tribeName">Stam</span> · laatste upload en coords per TW-account.</div>
+      <h1>Clear Bouwtijd — Stamdashboard</h1>
+      <div class="muted"><span id="tribeName">Stam</span> · planner, statistieken en coords-export.</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <select id="tribeSelect" style="width:auto;min-width:220px;padding:9px;background:#0d151d;color:var(--text);border:1px solid #405667;border-radius:8px"></select>
+      <select id="tribeSelect"></select>
       <a href="index.html"><button class="alt">Calculator</button></a>
       <a href="index.html#setup"><button class="alt">Accounts & stammen</button></a>
       <button id="logout">Uitloggen</button>
     </div>
   </div>
+
   <div id="status" class="status">Laden…</div>
-  <div id="players"></div>
+
+  <section class="panel">
+    <div class="filters">
+      <label><div class="muted">Zoek speler/account</div><input id="searchFilter" placeholder="Under the stairs"></label>
+      <label><div class="muted">Categorie</div>
+        <select id="categoryFilter">
+          <option value="all">Alles</option>
+          <option value="full">Full clears &lt; 1 dag</option>
+          <option value="half">Halve clears &lt; 3 dagen</option>
+          <option value="building">Nog in aanbouw</option>
+        </select>
+      </label>
+      <label><div class="muted">Sorteren</div>
+        <select id="sortFilter">
+          <option value="name">Naam</option>
+          <option value="full_desc">Meeste full clears</option>
+          <option value="half_desc">Meeste halve clears</option>
+          <option value="avg_asc">Snelst gemiddeld klaar</option>
+          <option value="updated_desc">Laatste upload</option>
+        </select>
+      </label>
+      <button id="copyFiltered">Kopieer gefilterde coords</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="summary">
+      <div class="stat"><b id="sumAccounts">0</b><small>TW-accounts</small></div>
+      <div class="stat"><b id="sumFull">0</b><small>Full &lt; 1 dag</small></div>
+      <div class="stat"><b id="sumHalf">0</b><small>Halve &lt; 3 dagen</small></div>
+      <div class="stat"><b id="sumBuilding">0</b><small>Nog in aanbouw</small></div>
+      <div class="stat"><b id="sumAverage">—</b><small>Gemiddelde bouwtijd</small></div>
+    </div>
+  </section>
+
+  <div class="tabs">
+    <button id="tabPlayers" class="active">Spelers</button>
+    <button id="tabPlanner" class="alt">Planner</button>
+  </div>
+
+  <div id="playersView"></div>
+
+  <section id="plannerView" class="panel hidden">
+    <h2>Planner — wie is wanneer klaar?</h2>
+    <div class="muted" style="margin-bottom:10px">Overzicht van de eerstvolgende full-clear momenten per TW-account.</div>
+    <div style="overflow:auto">
+      <table class="planner-table">
+        <thead><tr><th>TW-account</th><th>Nu klaar</th><th>&lt; 12 uur</th><th>&lt; 1 dag</th><th>&lt; 3 dagen</th><th>Gemiddeld</th></tr></thead>
+        <tbody id="plannerBody"></tbody>
+      </table>
+    </div>
+  </section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.js?v=5"></script>
-<script src="js/stam.js?v=5"></script>
-</body></html>
+<script src="js/supabase-config.js?v=9"></script>
+<script src="js/stam.js?v=9"></script>
+</body>
+</html>
