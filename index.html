@@ -490,7 +490,7 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
  <button id="calc">Importeren & berekenen</button>
  <button class="alt" id="copyDiscord" type="button">📋 Discord kopie</button>
  <button class="alt" id="toggleDetails" type="button">Toon details</button>
- <label style="display:flex;align-items:center;gap:8px;margin-left:auto;font-weight:600"><input id="hideDef" type="checkbox" checked style="width:auto"> Verberg def/ongeldige dorpen</label>
+ <label style="display:flex;align-items:center;gap:8px;margin-left:auto;font-weight:600"><input id="hideDef" type="checkbox" style="width:auto"> Toon alleen off-dorpen</label>
  <button class="alt" id="demo">Voorbeeld laden</button>
  <button class="alt" id="save">Instellingen opslaan</button>
  <button class="alt" id="clear">Wissen</button>
@@ -602,6 +602,9 @@ function parseBuildings(text){
   const map = {};
   data.villages.forEach(v => {
     map[v.coord] = {
+      id: v.id || '',
+      name: v.name || v.coord,
+      coord: v.coord,
       points: v.points || 0,
       main: v.main || 0,
       barracks: v.barracks || 0,
@@ -672,17 +675,31 @@ function isOffVillage(r){
 
 function calculate(){
  try{
-  const villages=parseCombined($('#combined').value);
+  const combinedVillages=parseCombined($('#combined').value);
   const bmap=parseBuildings($('#buildings').value);
   if(!Object.keys(bmap).length){
     throw new Error('Geen gebouwlevels gevonden. Gebruik de Gebouwen-F12-code bovenaan en plak de gekopieerde JSON opnieuw.');
   }
+
+  // Het gebouwenoverzicht is de hoofdlijst, omdat het echt alle dorpen bevat.
+  // Ontbreekt een dorp in Gecombineerd, dan rekenen we met 0 aanwezige/queued troepen.
+  const combinedMap = Object.fromEntries(combinedVillages.map(v => [v.coord, v]));
+
   const g={axe:+$('#goalAxe').value,light:+$('#goalLight').value,ram:+$('#goalRam').value};
   const base={axe:+$('#baseAxe').value,light:+$('#baseLight').value,ram:+$('#baseRam').value};
   const gameSpeed=Math.max(.0001,+$('#gameSpeed').value);
   const unitSpeed=Math.max(.0001,+$('#unitSpeed').value);
-  let rows=villages.filter(v=>bmap[v.coord]).map(v=>{
-    const b=bmap[v.coord];
+
+  let rows=Object.values(bmap).map(b=>{
+    const v = combinedMap[b.coord] || {
+      id: b.id || '',
+      name: b.name || b.coord,
+      coord: b.coord,
+      units: {axe:0, light:0, ram:0},
+      queue: {axe:0, light:0, ram:0},
+      queueEnd: {barracks:null, stable:null, garage:null},
+      bonuses: {barracks:0, stable:0, garage:0}
+    };
     const future={axe:v.units.axe+v.queue.axe,light:v.units.light+v.queue.light,ram:v.units.ram+v.queue.ram};
     const miss={axe:Math.max(0,g.axe-future.axe),light:Math.max(0,g.light-future.light),ram:Math.max(0,g.ram-future.ram)};
     const levels={axe:b.barracks,light:b.stable,ram:b.garage};
@@ -709,15 +726,15 @@ function calculate(){
     return {...v,b,future,miss,times,total,halfMiss,halfTimes,halfTotal,bottleneck};
   });
 
-  const hideDef = $('#hideDef')?.checked;
-  rows = rows.filter(isFiniteRow);
-  if(hideDef) rows = rows.filter(isOffVillage);
+  const onlyOff = $('#hideDef')?.checked;
+  const allRows = rows.filter(isFiniteRow);
+  const visibleRows = onlyOff ? allRows.filter(isOffVillage) : allRows;
 
-  render(rows,Object.keys(bmap).length);
+  render(visibleRows, Object.keys(bmap).length, allRows);
  }catch(e){$('#status').className='status error';$('#status').textContent=e.message}
 }
-function render(rows,buildingCount){
- latestRows=rows;
+function render(rows,buildingCount,uploadRows=rows){
+ latestRows=uploadRows;
 
  const buckets = {
    ready: rows.filter(r => r.total <= 1).length,
@@ -732,7 +749,7 @@ function render(rows,buildingCount){
 
  const totalMissing=rows.reduce((a,r)=>({axe:a.axe+r.miss.axe,light:a.light+r.miss.light,ram:a.ram+r.miss.ram}),{axe:0,light:0,ram:0});
  $('#status').className='status';
- $('#status').textContent=`${rows.length} dorpen correct gekoppeld aan ${buildingCount} gebouwregels.`;
+ $('#status').textContent=`${uploadRows.length} van ${buildingCount} dorpen geïmporteerd${rows.length!==uploadRows.length?` · ${rows.length} zichtbaar door filter`:''}.`;
  $('#cards').className='cards compact-cards';
  $('#cards').innerHTML=[
    ['Klaar', buckets.ready],
