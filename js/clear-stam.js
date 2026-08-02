@@ -75,13 +75,13 @@
 
     const { data, error } = await client
       .from("tribe_accounts")
-      .select("role, tribes(id,name,world_code,owner_user_id,created_at)")
+      .select("role, tribes_v2(id,name,world_code,owner_user_id,created_at)")
       .eq("game_account_id", activeGameAccountId);
     if (error) throw error;
 
     tribes = (data || [])
       .map(row => ({
-        ...row.tribes,
+        ...row.tribes_v2,
         account_role: row.role
       }))
       .filter(Boolean)
@@ -308,7 +308,13 @@
     button.disabled = false;
 
     if (error) return setMessage("loginMessage", "Inloggen mislukt. Controleer je gegevens.", true);
-    await refreshAuth();
+
+    try {
+      await refreshAuth();
+    } catch (refreshError) {
+      console.error(refreshError);
+      setMessage("loginMessage", `Ingelogd, maar laden mislukt: ${refreshError.message}`, true);
+    }
   }
 
   async function register() {
@@ -450,7 +456,7 @@
       const base = {
         user_id: activeUser.id,
         game_account_id: activeGameAccountId,
-        tribe_id: activeTribeId,
+        tribe_v2_id: activeTribeId,
         world_code: worldCode
       };
 
@@ -460,7 +466,7 @@
           ...base,
           ...summary(rows),
           updated_at: now
-        }, { onConflict: "game_account_id,tribe_id,world_code" });
+        }, { onConflict: "game_account_id,tribe_v2_id,world_code" });
       if (statusError) throw statusError;
 
       const records = rows.map(r => ({
@@ -476,7 +482,7 @@
 
       const { error: uploadError } = await client
         .from("clear_villages")
-        .upsert(records, { onConflict: "game_account_id,tribe_id,world_code,coord" });
+        .upsert(records, { onConflict: "game_account_id,tribe_v2_id,world_code,coord" });
       if (uploadError) throw uploadError;
 
       const currentCoords = new Set(records.map(r => r.coord));
@@ -484,7 +490,7 @@
         .from("clear_villages")
         .select("id,coord")
         .eq("game_account_id", activeGameAccountId)
-        .eq("tribe_id", activeTribeId)
+        .eq("tribe_v2_id", activeTribeId)
         .eq("world_code", worldCode);
       if (oldError) throw oldError;
 

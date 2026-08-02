@@ -46,13 +46,13 @@
 
     const { data, error: tribeError } = await client
       .from("tribe_accounts")
-      .select("tribes(id,name,world_code),game_account_id")
+      .select("tribes_v2(id,name,world_code),game_account_id")
       .in("game_account_id", accountIds);
     if (tribeError) throw tribeError;
 
     const unique = new Map();
     (data || []).forEach(row => {
-      if (row.tribes) unique.set(row.tribes.id, row.tribes);
+      if (row.tribes_v2) unique.set(row.tribes_v2.id, row.tribes_v2);
     });
     return [...unique.values()].sort((a, b) =>
       `${a.world_code} ${a.name}`.localeCompare(`${b.world_code} ${b.name}`)
@@ -71,8 +71,8 @@
 
     const [{ data: statuses, error: statusError }, { data: villages, error: villageError }, { data: accounts, error: accountError }] =
       await Promise.all([
-        client.from("clear_status").select("*").eq("tribe_id", activeTribeId).order("updated_at", { ascending: false }),
-        client.from("clear_villages").select("*").eq("tribe_id", activeTribeId),
+        client.from("clear_status").select("*").eq("tribe_v2_id", activeTribeId).order("updated_at", { ascending: false }),
+        client.from("clear_villages").select("*").eq("tribe_v2_id", activeTribeId),
         client.from("tribe_accounts").select("game_account_id,game_accounts(id,name)").eq("tribe_id", activeTribeId)
       ]);
 
