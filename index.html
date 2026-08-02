@@ -317,7 +317,7 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
   const table = document.querySelector('#combined_table');
   if (!table) throw new Error('Gecombineerd-tabel niet gevonden');
 
-  const unitOrder = ['spear','sword','axe','archer','spy','light','marcher','heavy','ram','catapult','knight'];
+  const unitOrder = ['spear','sword','axe','archer','spy','light','marcher','heavy','ram','catapult','knight','snob'];
   const num = s => Number(String(s || '0').replace(/\./g,'').replace(/[^\d-]/g,'')) || 0;
   const unitFrom = (title, re) => {
     const m = String(title || '').match(re);
@@ -536,7 +536,7 @@ async function pasteInto(id){
   }
 }
 const coordRe=/\((\d{3}\|\d{3})\)/;
-const unitOrder=['spear','sword','axe','archer','spy','light','marcher','heavy','ram','catapult','knight'];
+const unitOrder=['spear','sword','axe','archer','spy','light','marcher','heavy','ram','catapult','knight','snob'];
 
 function parseNumber(s){return Number(String(s||'0').replace(/\./g,'').replace(/[^\d-]/g,''))||0}
 function parseJsonInput(text, expectedType){
