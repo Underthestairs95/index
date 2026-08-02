@@ -590,8 +590,7 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
       text.includes('Dorp (') &&
       text.includes('in het dorp') &&
       text.includes('elders') &&
-      text.includes('op pad') &&
-      text.includes('totaal')
+      text.includes('op pad')
     );
   });
 
@@ -599,28 +598,75 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
     throw new Error('Troepentabel op Analyse → Troepen niet gevonden');
   }
 
-  const totalRows = [...troopTable.querySelectorAll('tr')].filter(row => {
-    const firstCell = row.cells?.[0]?.innerText?.trim().toLowerCase();
-    return firstCell === 'totaal';
-  });
-
-  if (!totalRows.length) {
-    throw new Error('Geen totaalregels per dorp gevonden');
-  }
-
+  const rows = [...troopTable.querySelectorAll('tr')];
   const totals = Object.fromEntries(unitOrder.map(unit => [unit, 0]));
+  let villages = 0;
 
-  totalRows.forEach(row => {
-    const cells = [...row.cells];
+  const readUnits = row => {
+    const cells = [...(row?.cells || [])];
 
-    unitOrder.forEach((unit, index) => {
-      totals[unit] += num(cells[index + 1]?.innerText);
+    // Bij een dorpsregel staat "eigen" in kolom 1.
+    // Bij "elders" en "op pad" beginnen de eenheden in kolom 1.
+    const startIndex =
+      String(cells[1]?.innerText || '').trim().toLowerCase() === 'eigen'
+        ? 2
+        : 1;
+
+    return unitOrder.map((unit, index) =>
+      num(cells[startIndex + index]?.innerText)
+    );
+  };
+
+  rows.forEach((row, index) => {
+    const cells = [...(row.cells || [])];
+    const first = String(cells[0]?.innerText || '').trim();
+    const second = String(cells[1]?.innerText || '').trim().toLowerCase();
+
+    const isVillageRow =
+      /\(\d{3}\|\d{3}\)/.test(first) &&
+      second === 'eigen';
+
+    if (!isVillageRow) return;
+
+    const ownHome = readUnits(row);
+
+    const nearbyRows = rows.slice(index + 1, index + 5);
+    const elsewhereRow = nearbyRows.find(candidate =>
+      String(candidate.cells?.[0]?.innerText || '')
+        .trim()
+        .toLowerCase() === 'elders'
+    );
+    const travellingRow = nearbyRows.find(candidate =>
+      String(candidate.cells?.[0]?.innerText || '')
+        .trim()
+        .toLowerCase() === 'op pad'
+    );
+
+    const elsewhere = elsewhereRow
+      ? readUnits(elsewhereRow)
+      : unitOrder.map(() => 0);
+
+    const travelling = travellingRow
+      ? readUnits(travellingRow)
+      : unitOrder.map(() => 0);
+
+    unitOrder.forEach((unit, unitIndex) => {
+      totals[unit] +=
+        ownHome[unitIndex] +
+        elsewhere[unitIndex] +
+        travelling[unitIndex];
     });
+
+    villages++;
   });
+
+  if (!villages) {
+    throw new Error('Geen dorpsregels met "eigen" gevonden');
+  }
 
   const output = {
     type: 'tw-account-troop-totals',
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     players: [
       {
@@ -628,7 +674,7 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
           window.game_data?.player?.name ||
           document.querySelector('#menu_row2 b')?.innerText?.trim() ||
           'Onbekend account',
-        villages: totalRows.length,
+        villages,
         units: totals
       }
     ]
@@ -652,7 +698,7 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
   });
 
   console.log(
-    `✅ Troepentotalen van ${totalRows.length} dorpen gekopieerd naar je klembord`
+    `✅ Eigen troepen van ${villages} dorpen gekopieerd: thuis + elders + op pad`
   );
 })();</textarea>
       <div class="actions" style="margin:10px 0 0">
