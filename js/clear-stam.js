@@ -1,6 +1,8 @@
 (() => {
   const client = window.supabaseClient;
   const DEFAULT_WORLD = "NL116";
+  const REMEMBER_KEY = "tw_remember_login";
+  const SESSION_KEY = "tw_session_login";
 
   let activeUser = null;
   let activeProfile = null;
@@ -339,6 +341,15 @@
 
     if (error) return setMessage("loginMessage", "Inloggen mislukt. Controleer je gegevens.", true);
 
+    const remember = !!el("rememberLogin")?.checked;
+    if (remember) {
+      localStorage.setItem(REMEMBER_KEY, "1");
+      sessionStorage.removeItem(SESSION_KEY);
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+      sessionStorage.setItem(SESSION_KEY, "1");
+    }
+
     try {
       await refreshAuth();
     } catch (refreshError) {
@@ -382,6 +393,8 @@
   }
 
   async function logout() {
+    localStorage.removeItem(REMEMBER_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
     await client.auth.signOut();
     showOnly("login");
   }
@@ -620,9 +633,23 @@
     localStorage.setItem("tw_active_tribe", activeTribeId || "");
   };
 
+  async function enforceLoginPersistence() {
+    const { data } = await client.auth.getSession();
+    const hasSession = !!data?.session;
+    const remember = localStorage.getItem(REMEMBER_KEY) === "1";
+    const thisTabSession = sessionStorage.getItem(SESSION_KEY) === "1";
+
+    if (hasSession && !remember && !thisTabSession) {
+      await client.auth.signOut();
+    }
+  }
+
   client.auth.onAuthStateChange(() => setTimeout(() => refreshAuth().catch(console.error), 0));
-  refreshAuth().catch(error => {
-    console.error(error);
-    setMessage("loginMessage", "Kon je sessie niet laden.", true);
-  });
+
+  enforceLoginPersistence()
+    .then(() => refreshAuth())
+    .catch(error => {
+      console.error(error);
+      setMessage("loginMessage", "Kon je sessie niet laden.", true);
+    });
 })();
