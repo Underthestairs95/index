@@ -132,13 +132,29 @@
 
   function renderSummary(rows) {
     const accounts = rows.length;
+    const all = rows.flatMap(r=>r.villages);
+
+    const ready = all.filter(v=>v.total_seconds<=1).length;
+    const under1 = all.filter(v=>v.total_seconds>1 && v.total_seconds<=86400).length;
+    const under2 = all.filter(v=>v.total_seconds>86400 && v.total_seconds<=172800).length;
+    const under3 = all.filter(v=>v.total_seconds>172800 && v.total_seconds<=259200).length;
+    const under5 = all.filter(v=>v.total_seconds>259200 && v.total_seconds<=432000).length;
+    const under7 = all.filter(v=>v.total_seconds>432000 && v.total_seconds<=604800).length;
+    const over7 = all.filter(v=>v.total_seconds>604800).length;
+
     const full = rows.reduce((s,r)=>s+r.cats.full.length,0);
     const half = rows.reduce((s,r)=>s+r.cats.half.length,0);
     const building = rows.reduce((s,r)=>s+r.cats.building.length,0);
-    const all = rows.flatMap(r=>r.villages);
     const avg = all.length ? Math.round(all.reduce((s,v)=>s+v.total_seconds,0)/all.length) : NaN;
 
     document.getElementById("sumAccounts").textContent = accounts;
+    document.getElementById("sumReady").textContent = ready;
+    document.getElementById("sumUnder1").textContent = under1;
+    document.getElementById("sumUnder2").textContent = under2;
+    document.getElementById("sumUnder3").textContent = under3;
+    document.getElementById("sumUnder5").textContent = under5;
+    document.getElementById("sumUnder7").textContent = under7;
+    document.getElementById("sumOver7").textContent = over7;
     document.getElementById("sumFull").textContent = full;
     document.getElementById("sumHalf").textContent = half;
     document.getElementById("sumBuilding").textContent = building;
@@ -188,15 +204,27 @@
       const ready = r.villages.filter(v=>v.total_seconds<=1).length;
       const h12 = r.villages.filter(v=>v.total_seconds>1 && v.total_seconds<=43200).length;
       const d1 = r.villages.filter(v=>v.total_seconds>43200 && v.total_seconds<=86400).length;
-      const d3 = r.villages.filter(v=>v.total_seconds>86400 && v.total_seconds<=259200).length;
+      const d2 = r.villages.filter(v=>v.total_seconds>86400 && v.total_seconds<=172800).length;
+      const d3 = r.villages.filter(v=>v.total_seconds>172800 && v.total_seconds<=259200).length;
+      const d5 = r.villages.filter(v=>v.total_seconds>259200 && v.total_seconds<=432000).length;
+      const d7 = r.villages.filter(v=>v.total_seconds>432000 && v.total_seconds<=604800).length;
+      const over7 = r.villages.filter(v=>v.total_seconds>604800).length;
+
       return `<tr>
         <td><strong>${r.account.name}</strong></td>
         <td><span class="badge good">${ready}</span></td>
-        <td>${h12}</td><td>${d1}</td><td>${d3}</td>
+        <td>${h12}</td>
+        <td>${d1}</td>
+        <td>${d2}</td>
+        <td>${d3}</td>
+        <td>${d5}</td>
+        <td>${d7}</td>
+        <td>${over7 ? `<span class="badge bad">${over7}</span>` : 0}</td>
         <td>${fmtDuration(r.avg)}</td>
       </tr>`;
     }).join("");
-    if(!rows.length) plannerBody.innerHTML='<tr><td colspan="6">Geen resultaten.</td></tr>';
+
+    if(!rows.length) plannerBody.innerHTML='<tr><td colspan="10">Geen resultaten.</td></tr>';
   }
 
   function renderAll() {
