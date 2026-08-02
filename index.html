@@ -78,6 +78,39 @@ a{text-decoration:none}
 .owner-code-row code{display:block;background:#091117;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:15px;color:var(--accent)}
 @media(max-width:720px){.owner-code-row{grid-template-columns:1fr}}
 
+.remember-row{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--muted);font-size:13px}
+.remember-row input{width:auto}
+
+/* Gebalanceerde breedte: ruimte aan de zijkanten, ook bij uitzoomen */
+#appView.wrap{
+  width:min(94vw,1550px);
+  max-width:1550px;
+  margin:0 auto;
+  padding:14px 18px 22px;
+}
+#appView .app-nav{margin-bottom:8px}
+#appView .auth-userbar{margin-bottom:8px;padding:8px 12px}
+#appView .panel{padding:12px}
+#appView textarea:not([readonly]){min-height:155px}
+#appView .inputs{margin-top:8px;gap:7px}
+#appView .field{padding:7px}
+#appView .actions{margin:9px 0}
+.f12-panel{margin-bottom:10px!important}
+.f12-panel.collapsed .f12-content{display:none}
+.f12-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.f12-head h2{margin:0}
+.f12-toggle{white-space:nowrap}
+.f12-panel textarea[readonly]{min-height:165px!important;max-height:165px}
+.f12-panel ol{margin:6px 0 8px;padding-left:20px}
+.f12-panel p{margin:6px 0 8px}
+@media(max-width:1000px){
+  #appView.wrap{width:96vw;padding:10px}
+}
+@media(max-width:700px){
+  #appView.wrap{width:100%;padding:8px}
+  .f12-panel textarea[readonly]{min-height:135px!important;max-height:135px}
+}
+
 </style>
 </head>
 <body class="compact">
@@ -94,6 +127,7 @@ a{text-decoration:none}
     <div id="loginForm">
       <div class="field"><span>E-mailadres</span><input id="loginEmail" type="email" autocomplete="username" placeholder="naam@email.nl"></div>
       <div class="field"><span>Wachtwoord</span><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <label class="remember-row"><input id="rememberLogin" type="checkbox" checked> Ingelogd blijven op dit apparaat</label>
       <div class="actions"><button id="loginButton" type="button">Inloggen</button></div>
     </div>
 
@@ -225,11 +259,19 @@ a{text-decoration:none}
 <h1>TW Clear Bouwtijd Calculator — JSON</h1>
 <div class="sub">Volledig offline. F12 exporteert alleen compacte JSON naar je klembord.</div>
 
-<div class="panel" style="margin-bottom:16px">
-  <h2 style="margin-top:0">Gegevens ophalen met F12</h2>
-  <p class="muted">Elke code maakt compacte JSON en kopieert die automatisch naar je klembord. Daarna plak je de JSON hieronder.</p>
+<div id="f12Panel" class="panel f12-panel">
+  <div class="f12-head">
+    <div>
+      <h2>Gegevens ophalen met F12</h2>
+      <div class="muted">Alleen nodig wanneer je nieuwe exports wilt ophalen.</div>
+    </div>
+    <button id="toggleF12Panel" class="alt f12-toggle" type="button">F12-uitleg verbergen</button>
+  </div>
 
-  <div class="grid">
+  <div class="f12-content">
+    <p class="muted">Elke code maakt compacte JSON en kopieert die automatisch naar je klembord. Daarna plak je de JSON hieronder.</p>
+
+    <div class="grid">
     <div>
       <label>1. Gecombineerd-overzicht</label>
       <ol>
@@ -376,10 +418,11 @@ a{text-decoration:none}
     </div>
   </div>
 
-  <p class="muted" style="margin-bottom:0">De consolecode kopieert de JSON-output zelf. Je hoeft dus geen lange tabel meer te selecteren.</p>
+    <p class="muted" style="margin-bottom:0">De consolecode kopieert de JSON-output zelf. Je hoeft dus geen lange tabel meer te selecteren.</p>
+  </div>
 </div>
 
-  <p class="muted" style="margin-bottom:0">Na uitvoeren staat de tabel op je klembord. Plak Gecombineerd links en Gebouwen rechts.</p>
+  <p class="muted" style="margin:4px 0 8px">Na uitvoeren staat de tabel op je klembord. Plak Gecombineerd links en Gebouwen rechts.</p>
 </div>
 
 
@@ -806,11 +849,28 @@ $('#hideDef').onchange=()=>{ if($('#combined').value && $('#buildings').value) c
 $('#toggleDetails').onclick=()=>{
   document.body.classList.toggle('compact');
   $('#toggleDetails').textContent=document.body.classList.contains('compact')?'Toon details':'Verberg details';
-};$('#save').onclick=save;$('#clear').onclick=clearAll;
+};
+
+const f12Panel = $('#f12Panel');
+const toggleF12Panel = $('#toggleF12Panel');
+const F12_PANEL_KEY = 'tw_f12_panel_collapsed';
+
+function setF12PanelCollapsed(collapsed){
+  f12Panel.classList.toggle('collapsed', collapsed);
+  toggleF12Panel.textContent = collapsed ? 'F12-uitleg tonen' : 'F12-uitleg verbergen';
+  localStorage.setItem(F12_PANEL_KEY, collapsed ? '1' : '0');
+}
+
+toggleF12Panel.onclick = () => {
+  setF12PanelCollapsed(!f12Panel.classList.contains('collapsed'));
+};
+
+setF12PanelCollapsed(localStorage.getItem(F12_PANEL_KEY) === '1');
+$('#save').onclick=save;$('#clear').onclick=clearAll;
 $('#demo').onclick=()=>{alert('Plak jouw echte exports; deze versie gebruikt bewust geen ingame verbinding of voorbeeldaccountdata.')};
 load();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=5"></script>
-<script src="js/clear-stam.js?v=5"></script>
+<script src="js/clear-stam.js?v=7"></script>
 </body></html>
