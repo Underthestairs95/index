@@ -466,6 +466,22 @@
     await renderRequests();
   }
 
+  function troopTotals(rows) {
+    const keys = [
+      "spear","sword","axe","archer","spy","light",
+      "marcher","heavy","ram","catapult","knight","snob"
+    ];
+
+    const totals = Object.fromEntries(keys.map(key => [key, 0]));
+    rows.forEach(row => {
+      keys.forEach(key => {
+        totals[key] += Number(row.units?.[key] || 0);
+      });
+    });
+
+    return totals;
+  }
+
   function summary(rows) {
     return {
       total_offs: rows.length,
@@ -513,6 +529,7 @@
         .upsert({
           ...base,
           ...summary(rows),
+          troop_totals: troopTotals(rows),
           updated_at: now
         }, { onConflict: "game_account_id,tribe_v2_id,world_code" });
       if (statusError) throw statusError;

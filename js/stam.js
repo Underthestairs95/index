@@ -4,6 +4,9 @@
   const playersView = document.getElementById("playersView");
   const plannerView = document.getElementById("plannerView");
   const plannerBody = document.getElementById("plannerBody");
+  const troopsView = document.getElementById("troopsView");
+  const troopBody = document.getElementById("troopBody");
+  const tribeTroopSummary = document.getElementById("tribeTroopSummary");
   const tribeSelect = document.getElementById("tribeSelect");
 
   let availableTribes = [];
@@ -12,6 +15,17 @@
   let rawVillages = [];
   let accountMap = {};
   let viewRows = [];
+  const troopKeys = [
+    "spear","sword","axe","archer","spy","light",
+    "marcher","heavy","ram","catapult","knight","snob"
+  ];
+  const troopLabels = {
+    spear:"Speer", sword:"Zwaard", axe:"Bijl", archer:"Boog",
+    spy:"Verkenner", light:"LC", marcher:"Bereden boog", heavy:"ZC",
+    ram:"Ram", catapult:"Kata", knight:"Ridder", snob:"Edelman"
+  };
+  const numberFmt = new Intl.NumberFormat("nl-NL");
+
 
   const age = iso => {
     const d = Date.now() - new Date(iso).getTime();
@@ -93,7 +107,8 @@
       return {
         status:s,
         account:accountMap[s.game_account_id] || {name:"Onbekend account"},
-        villages,cats,avg
+        villages,cats,avg,
+        troopTotals:s.troop_totals || {}
       };
     });
   }
@@ -219,11 +234,63 @@
     if(!rows.length) plannerBody.innerHTML='<tr><td colspan="10">Geen resultaten.</td></tr>';
   }
 
+  function aggregateTroops(rows) {
+    const totals = Object.fromEntries(troopKeys.map(key => [key, 0]));
+    rows.forEach(row => {
+      troopKeys.forEach(key => {
+        totals[key] += Number(row.troopTotals?.[key] || 0);
+      });
+    });
+    return totals;
+  }
+
+  function renderTroops(rows) {
+    const tribeTotals = aggregateTroops(rows);
+
+    tribeTroopSummary.innerHTML = troopKeys.map(key => `
+      <div class="stat">
+        <b>${numberFmt.format(tribeTotals[key])}</b>
+        <small>${troopLabels[key]}</small>
+      </div>
+    `).join("");
+
+    troopBody.innerHTML = rows.map(row => `
+      <tr>
+        <td><strong>${row.account.name}</strong></td>
+        ${troopKeys.map(key => `<td>${numberFmt.format(Number(row.troopTotals?.[key] || 0))}</td>`).join("")}
+      </tr>
+    `).join("");
+
+    if (!rows.length) {
+      troopBody.innerHTML = '<tr><td colspan="13">Geen resultaten.</td></tr>';
+    }
+  }
+
+  function buildTroopText(rows) {
+    const tribeTotals = aggregateTroops(rows);
+    const lines = ["=== STAM TROEPENTOTALEN ==="];
+    troopKeys.forEach(key => {
+      lines.push(`${troopLabels[key]}: ${numberFmt.format(tribeTotals[key])}`);
+    });
+
+    lines.push("");
+    rows.forEach(row => {
+      lines.push(`=== ${row.account.name} ===`);
+      troopKeys.forEach(key => {
+        lines.push(`${troopLabels[key]}: ${numberFmt.format(Number(row.troopTotals?.[key] || 0))}`);
+      });
+      lines.push("");
+    });
+
+    return lines.join("\n").trim();
+  }
+
   function renderAll() {
     const rows = filteredRows();
     renderSummary(rows);
     renderPlayers(rows);
     renderPlanner(rows);
+    renderTroops(rows);
   }
 
   async function renderTribe() {
@@ -264,21 +331,28 @@
       await copyText(text,e.currentTarget);
     };
 
-    document.getElementById("tabPlayers").onclick=()=>{
-      document.getElementById("tabPlayers").classList.add("active");
-      document.getElementById("tabPlayers").classList.remove("alt");
-      document.getElementById("tabPlanner").classList.remove("active");
-      document.getElementById("tabPlanner").classList.add("alt");
-      playersView.classList.remove("hidden");
-      plannerView.classList.add("hidden");
-    };
-    document.getElementById("tabPlanner").onclick=()=>{
-      document.getElementById("tabPlanner").classList.add("active");
-      document.getElementById("tabPlanner").classList.remove("alt");
-      document.getElementById("tabPlayers").classList.remove("active");
-      document.getElementById("tabPlayers").classList.add("alt");
-      playersView.classList.add("hidden");
-      plannerView.classList.remove("hidden");
+    function activateTab(tab) {
+      const buttons = {
+        players:document.getElementById("tabPlayers"),
+        planner:document.getElementById("tabPlanner"),
+        troops:document.getElementById("tabTroops")
+      };
+      Object.entries(buttons).forEach(([key,button]) => {
+        button.classList.toggle("active", key===tab);
+        button.classList.toggle("alt", key!==tab);
+      });
+
+      playersView.classList.toggle("hidden", tab!=="players");
+      plannerView.classList.toggle("hidden", tab!=="planner");
+      troopsView.classList.toggle("hidden", tab!=="troops");
+    }
+
+    document.getElementById("tabPlayers").onclick=()=>activateTab("players");
+    document.getElementById("tabPlanner").onclick=()=>activateTab("planner");
+    document.getElementById("tabTroops").onclick=()=>activateTab("troops");
+
+    document.getElementById("copyTroopTotals").onclick=async event=>{
+      await copyText(buildTroopText(filteredRows()),event.currentTarget);
     };
 
     await renderTribe();
