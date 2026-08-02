@@ -70,6 +70,14 @@ a{text-decoration:none}
 .badge.owner{background:#1e4b33;color:#c6f6d5}
 @media(max-width:820px){.setup-grid,.inline-grid{grid-template-columns:1fr}}
 
+.app-nav{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 14px;margin-bottom:14px;background:#101b24;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #0004}
+.app-nav .nav-links{display:flex;gap:8px;flex-wrap:wrap}
+.app-nav button{padding:9px 12px}
+.owner-settings{margin-top:14px;padding:14px;border:1px dashed #557083;border-radius:12px;background:#101a22}
+.owner-code-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end}
+.owner-code-row code{display:block;background:#091117;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:15px;color:var(--accent)}
+@media(max-width:720px){.owner-code-row{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body class="compact">
@@ -104,9 +112,15 @@ a{text-decoration:none}
 
 <div id="setupView" class="setup-shell hidden">
   <div class="setup-panel">
-    <div class="auth-userbar">
-      <div>Ingelogd als <strong id="setupUser">—</strong></div>
-      <button id="setupLogoutButton" class="alt" type="button">Uitloggen</button>
+    <div class="app-nav">
+      <div class="nav-links">
+        <button id="setupToCalculatorButton" class="alt" type="button">Calculator</button>
+        <a href="stam.html"><button class="alt" type="button">Stamoverzicht</button></a>
+      </div>
+      <div class="nav-links">
+        <span>Ingelogd als <strong id="setupUser">—</strong></span>
+        <button id="setupLogoutButton" class="alt" type="button">Uitloggen</button>
+      </div>
     </div>
 
     <h1>Accounts en stammen</h1>
@@ -150,11 +164,32 @@ a{text-decoration:none}
             <div class="field"><span>Wereld</span><input id="requestTribeWorld" type="text" maxlength="20" value="NL116" placeholder="NL116"></div>
             <div class="field"><span>Exacte stamnaam</span><input id="requestTribeName" type="text" maxlength="60" placeholder="404 Skill Not Found"></div>
           </div>
+          <div class="field"><span>Beveiligingscode</span><input id="requestTribeCode" type="text" maxlength="32" placeholder="Vraag deze aan de stameigenaar"></div>
           <div class="actions"><button id="requestTribeButton" type="button">Lidmaatschap aanvragen</button></div>
         </div>
       </div>
       <div id="tribeSetupMessage" class="status">Maak een stam of vraag aansluiting aan.</div>
       <div id="myTribes" class="setup-list"></div>
+
+      <div id="tribeOwnerSettings" class="owner-settings hidden">
+        <h3 style="margin-top:0">Staminstellingen</h3>
+        <div class="muted">Alleen de stameigenaar ziet en wijzigt deze code.</div>
+        <div class="owner-code-row" style="margin-top:10px">
+          <div>
+            <span class="muted">Huidige beveiligingscode</span>
+            <code id="currentTribeSecurityCode">—</code>
+          </div>
+          <button id="copyTribeSecurityCode" class="alt" type="button">Kopieer code</button>
+          <button id="generateTribeSecurityCode" type="button">Nieuwe code</button>
+        </div>
+        <div class="field" style="margin-top:10px">
+          <span>Zelf een nieuwe code kiezen</span>
+          <input id="customTribeSecurityCode" type="text" maxlength="32" placeholder="Bijvoorbeeld 404-WOLF-116">
+        </div>
+        <div class="actions">
+          <button id="saveTribeSecurityCode" type="button">Code opslaan</button>
+        </div>
+      </div>
     </section>
 
     <section class="setup-card" style="margin-top:14px">
@@ -169,16 +204,23 @@ a{text-decoration:none}
 </div>
 
 <div id="appView" class="wrap hidden">
+  <div class="app-nav">
+    <div class="nav-links">
+      <button class="alt" type="button" disabled>Calculator</button>
+      <a href="stam.html"><button class="alt" type="button">Stamoverzicht</button></a>
+      <button id="openSetupButton" class="alt" type="button">Accounts & stammen</button>
+    </div>
+    <div class="nav-links">
+      <button id="logoutButton" class="alt" type="button">Uitloggen</button>
+    </div>
+  </div>
   <div class="auth-userbar">
     <div>
       Ingelogd als <strong id="currentPlayer">—</strong>
       · TW-account: <select id="activeGameAccountSelect" style="width:auto;min-width:170px"></select>
       · Stam: <select id="activeTribeSelect" style="width:auto;min-width:170px"></select>
     </div>
-    <div class="auth-row">
-      <button id="openSetupButton" class="alt" type="button">Accounts & stammen</button> <a href="stam.html"><button class="alt" type="button">Stamoverzicht</button></a>
-      <button id="logoutButton" class="alt" type="button">Uitloggen</button>
-    </div>
+    <div class="auth-row"></div>
   </div>
 <h1>TW Clear Bouwtijd Calculator — JSON</h1>
 <div class="sub">Volledig offline. F12 exporteert alleen compacte JSON naar je klembord.</div>
@@ -769,6 +811,6 @@ $('#demo').onclick=()=>{alert('Plak jouw echte exports; deze versie gebruikt bew
 load();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-config.js?v=3"></script>
-<script src="js/clear-stam.js?v=4"></script>
+<script src="js/supabase-config.js?v=5"></script>
+<script src="js/clear-stam.js?v=5"></script>
 </body></html>
