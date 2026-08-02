@@ -3,5 +3,24 @@
 <style>
 :root{--bg:#0f1720;--panel:#18232f;--panel2:#202f3d;--text:#eef5fa;--muted:#9fb1c0;--line:#314454;--accent:#f0b44d;--good:#52c878;--bad:#ed6a5a}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#0d141b,#14202a);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}.wrap{max-width:1200px;margin:auto;padding:24px}h1{margin:0 0 6px}.muted{color:var(--muted)}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.panel{background:rgba(24,35,47,.97);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-top:12px}.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}.stat b{display:block;font-size:21px}.stat small{color:var(--muted)}button{border:0;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer;background:var(--accent);color:#221708}button.alt{background:#2e4353;color:#eef5fa}.coords{display:none;white-space:pre-wrap;background:#0d151d;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px;font:13px/1.5 Consolas,monospace}.status{padding:11px 14px;border-radius:9px;background:#21313e;margin-bottom:14px}.error{background:#4a2424;color:#ffd6d1}a{text-decoration:none}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
-</style></head><body><div class="wrap"><div class="top"><div><h1>Clear Bouwtijd — Stamoverzicht</h1><div class="muted">Laatste upload en coords per speler.</div></div><div><a href="index.html"><button class="alt">Calculator</button></a> <button id="logout">Uitloggen</button></div></div><div id="status" class="status">Laden…</div><div id="players"></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/supabase-config.js?v=3"></script><script src="js/stam.js?v=4"></script></body></html>
+</style></head><body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Clear Bouwtijd — Stamoverzicht</h1>
+      <div class="muted"><span id="tribeName">Stam</span> · laatste upload en coords per TW-account.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="tribeSelect" style="width:auto;min-width:220px;padding:9px;background:#0d151d;color:var(--text);border:1px solid #405667;border-radius:8px"></select>
+      <a href="index.html"><button class="alt">Calculator</button></a>
+      <a href="index.html#setup"><button class="alt">Accounts & stammen</button></a>
+      <button id="logout">Uitloggen</button>
+    </div>
+  </div>
+  <div id="status" class="status">Laden…</div>
+  <div id="players"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js?v=5"></script>
+<script src="js/stam.js?v=5"></script>
+</body></html>
