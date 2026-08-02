@@ -44,23 +44,80 @@ button.good{background:var(--good);color:#07170d}
 .upload-box .muted{margin:4px 0 0}
 a{text-decoration:none}
 
+.auth-tabs{display:flex;gap:8px;margin:14px 0}
+.auth-tabs button{flex:1}
+.auth-tabs button.active{background:var(--accent);color:#221708}
+.auth-tabs button:not(.active){background:#2e4353;color:#eef5fa}
+.auth-help{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
+.tribe-shell{max-width:760px;margin:36px auto;padding:24px}
+.tribe-panel{background:rgba(24,35,47,.98);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 18px 50px #0006}
+.tribe-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.tribe-card{background:#13202a;border:1px solid var(--line);border-radius:12px;padding:14px}
+.tribe-code{font:700 15px Consolas,monospace;color:var(--accent)}
+@media(max-width:720px){.tribe-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body class="compact">
 <div id="loginView" class="auth-shell">
   <div class="auth-panel">
     <h1>TW Clear Bouwtijd Calculator</h1>
-    <div class="sub">Stameditie — log in met je stamaccount.</div>
-    <div class="field"><span>E-mailadres</span><input id="loginEmail" type="email" autocomplete="username" placeholder="naam@email.nl"></div>
-    <div class="field"><span>Wachtwoord</span><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"></div>
-    <div class="actions"><button id="loginButton" type="button">Inloggen</button></div>
-    <div id="loginMessage" class="status">Log in om de calculator te openen.</div>
+    <div class="sub">Maak zelf een account aan of log in.</div>
+
+    <div class="auth-tabs">
+      <button id="showLoginTab" class="active" type="button">Inloggen</button>
+      <button id="showRegisterTab" type="button">Account aanmaken</button>
+    </div>
+
+    <div id="loginForm">
+      <div class="field"><span>E-mailadres</span><input id="loginEmail" type="email" autocomplete="username" placeholder="naam@email.nl"></div>
+      <div class="field"><span>Wachtwoord</span><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <div class="actions"><button id="loginButton" type="button">Inloggen</button></div>
+    </div>
+
+    <div id="registerForm" class="hidden">
+      <div class="field"><span>Spelersnaam</span><input id="registerPlayer" type="text" maxlength="40" placeholder="Under the Stairs"></div>
+      <div class="field"><span>E-mailadres</span><input id="registerEmail" type="email" autocomplete="email" placeholder="naam@email.nl"></div>
+      <div class="field"><span>Wachtwoord</span><input id="registerPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Minimaal 8 tekens"></div>
+      <div class="field"><span>Herhaal wachtwoord</span><input id="registerPassword2" type="password" autocomplete="new-password" minlength="8" placeholder="Nogmaals je wachtwoord"></div>
+      <div class="actions"><button id="registerButton" type="button">Account aanmaken</button></div>
+      <div class="auth-help">Na registratie maak je zelf een stamgroep met een eigen koppelcode, of je sluit aan met de code van een ander.</div>
+    </div>
+
+    <div id="loginMessage" class="status">Log in of maak een account aan.</div>
+  </div>
+</div>
+
+<div id="tribeView" class="tribe-shell hidden">
+  <div class="tribe-panel">
+    <h1>Stamgroep koppelen</h1>
+    <div class="sub">Maak een nieuwe groep of sluit aan bij een bestaande groep.</div>
+
+    <div class="tribe-grid">
+      <div class="tribe-card">
+        <h2 style="margin-top:0">Nieuwe groep maken</h2>
+        <div class="field"><span>Naam van de groep</span><input id="createTribeName" type="text" maxlength="50" placeholder="404 Skill Not Found"></div>
+        <div class="field"><span>Zelfgekozen koppelcode</span><input id="createTribeCode" type="text" maxlength="24" placeholder="404CLEAR116"></div>
+        <div class="auth-help">Gebruik 4–24 tekens: letters, cijfers of een streepje. Deel deze code alleen met je stamleden.</div>
+        <div class="actions"><button id="createTribeButton" type="button">Groep maken</button></div>
+      </div>
+
+      <div class="tribe-card">
+        <h2 style="margin-top:0">Aansluiten met code</h2>
+        <div class="field"><span>Koppelcode</span><input id="joinTribeCode" type="text" maxlength="24" placeholder="404CLEAR116"></div>
+        <div class="auth-help">Vraag de groepsmaker om de exacte code.</div>
+        <div class="actions"><button id="joinTribeButton" type="button">Aansluiten</button></div>
+      </div>
+    </div>
+
+    <div id="tribeMessage" class="status">Je account is klaar. Kies nu je stamgroep.</div>
+    <div class="actions"><button id="tribeLogoutButton" class="alt" type="button">Uitloggen</button></div>
   </div>
 </div>
 
 <div id="appView" class="wrap hidden">
   <div class="auth-userbar">
-    <div>Ingelogd als <strong id="currentPlayer">—</strong></div>
+    <div>Ingelogd als <strong id="currentPlayer">—</strong> · <span id="currentTribe">Geen groep</span> <span id="currentTribeCode" class="tribe-code"></span></div>
     <div class="auth-row">
       <a href="stam.html"><button class="alt" type="button">Stamoverzicht</button></a>
       <button id="logoutButton" class="alt" type="button">Uitloggen</button>
