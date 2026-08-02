@@ -162,6 +162,94 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
 @media(max-width:1080px){.export-grid{grid-template-columns:1fr 1fr}.export-step:last-child{grid-column:1/-1}}
 @media(max-width:720px){.export-grid,.exact-hint{grid-template-columns:1fr}.export-step:last-child{grid-column:auto}}
 
+/* Inklapbare workflow */
+.workflow-panel{
+  margin:10px 0;
+  background:linear-gradient(180deg,#14232e,#101b23);
+  border:1px solid #2a4352;
+  border-radius:14px;
+  box-shadow:0 12px 28px rgba(0,0,0,.18);
+  overflow:hidden;
+}
+.workflow-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:13px 14px;
+  cursor:pointer;
+  user-select:none;
+}
+.workflow-head:hover{background:rgba(255,255,255,.018)}
+.workflow-title{display:flex;align-items:center;gap:10px;min-width:0}
+.workflow-number{
+  display:inline-grid;
+  place-items:center;
+  width:29px;height:29px;
+  flex:0 0 29px;
+  border-radius:9px;
+  background:var(--accent);
+  color:#251807;
+  font-size:13px;
+  font-weight:900;
+}
+.workflow-title h2{font-size:18px;margin:0 0 2px}
+.workflow-title .muted{font-size:12px}
+.workflow-actions{display:flex;align-items:center;gap:8px}
+.workflow-summary{
+  padding:4px 9px;
+  border-radius:999px;
+  background:#213746;
+  border:1px solid #355365;
+  color:#c9dbe6;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.workflow-summary.good{background:#173d29;border-color:#2e6848;color:#c7f6d6}
+.workflow-summary.warn{background:#4a3918;border-color:#745b25;color:#ffe2a0}
+.workflow-toggle{padding:8px 10px!important;min-width:92px}
+.workflow-content{padding:0 14px 14px}
+.workflow-panel.collapsed .workflow-content{display:none}
+.workflow-panel.collapsed .workflow-head{padding-bottom:13px}
+.workflow-panel .grid{margin:0}
+.workflow-panel .exact-import-panel{margin:0;box-shadow:none}
+.workflow-panel .inputs{margin:0}
+.import-workflow-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.import-card{
+  background:linear-gradient(180deg,#162631,#111d25);
+  border:1px solid #2a4352;
+  border-radius:12px;
+  padding:12px;
+  min-width:0;
+}
+.import-card textarea{min-height:135px!important}
+.import-card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:8px;
+  margin-bottom:8px;
+}
+.import-card-head label{margin:0}
+.import-card .actions{margin:0 0 8px}
+.workflow-settings-note{margin-top:10px}
+@media(max-width:1050px){
+  .import-workflow-grid{grid-template-columns:1fr 1fr}
+  .import-card:last-child{grid-column:1/-1}
+}
+@media(max-width:720px){
+  .workflow-head{align-items:flex-start}
+  .workflow-actions{flex-direction:column;align-items:flex-end}
+  .workflow-summary{white-space:normal;text-align:right}
+  .import-workflow-grid{grid-template-columns:1fr}
+  .import-card:last-child{grid-column:auto}
+}
+
 </style>
 </head>
 <body class="compact">
@@ -310,16 +398,22 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
 <h1>TW Clear Bouwtijd Calculator — JSON</h1>
 <div class="sub">Volledig offline. F12 exporteert alleen compacte JSON naar je klembord.</div>
 
-<div id="f12Panel" class="panel f12-panel">
-  <div class="f12-head">
-    <div>
-      <h2>Gegevens ophalen met F12</h2>
-      <div class="muted">Alleen nodig wanneer je nieuwe exports wilt ophalen.</div>
+<div id="f12Panel" class="workflow-panel f12-panel">
+  <div class="workflow-head" data-panel-toggle="f12Panel">
+    <div class="workflow-title">
+      <span class="workflow-number">1</span>
+      <div>
+        <h2>Exporteren uit Tribal Wars</h2>
+        <div class="muted">F12-codes voor Gecombineerd, Gebouwen en exacte Troepentotalen.</div>
+      </div>
     </div>
-    <button id="toggleF12Panel" class="alt f12-toggle" type="button">F12-uitleg verbergen</button>
+    <div class="workflow-actions">
+      <span class="workflow-summary">Alleen openen bij nieuwe exports</span>
+      <button id="toggleF12Panel" class="alt workflow-toggle" type="button">Verbergen</button>
+    </div>
   </div>
 
-  <div class="f12-content">
+  <div class="workflow-content f12-content">
     <p class="muted">Elke code maakt compacte JSON en kopieert die automatisch naar je klembord. Daarna plak je de JSON hieronder.</p>
 
     <div class="export-grid">
@@ -562,37 +656,81 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
 </div>
 
 
-<div class="grid">
-  <div class="panel">
-    <label>1. Gecombineerd-JSON plakken</label>
-    <div class="actions" style="margin:0 0 8px"><button class="alt" type="button" onclick="pasteInto('combined')">Plak van klembord</button></div><textarea id="combined" placeholder='Plak hier JSON met type "tw-clear-combined"'></textarea>
-  </div>
-  <div class="panel">
-    <label>2. Gebouwen-JSON plakken</label>
-    <div class="actions" style="margin:0 0 8px"><button class="alt" type="button" onclick="pasteInto('buildings')">Plak van klembord</button></div><textarea id="buildings" placeholder='Plak hier JSON met type "tw-clear-buildings"'></textarea>
-  </div>
-</div>
-
-<div class="exact-import-panel">
-  <div class="exact-import-head">
-    <div>
-      <h2>3. Exacte troepentotalen</h2>
-      <div class="muted">Leest alle troepen in bezit, dus ook troepen die onderweg zijn of elders ondersteunen.</div>
+<section id="dataPanel" class="workflow-panel">
+  <div class="workflow-head" data-panel-toggle="dataPanel">
+    <div class="workflow-title">
+      <span class="workflow-number">2</span>
+      <div>
+        <h2>Gegevens importeren</h2>
+        <div class="muted">Plak de drie JSON-exports. Na berekenen mag dit paneel dicht.</div>
+      </div>
     </div>
-    <span id="troopImportBadge" class="import-badge warn">Nog niet geplakt</span>
+    <div class="workflow-actions">
+      <span id="dataPanelSummary" class="workflow-summary warn">0 van 3 gereed</span>
+      <button id="toggleDataPanel" class="alt workflow-toggle" type="button">Verbergen</button>
+    </div>
   </div>
-  <div class="actions" style="margin:0 0 8px">
-    <button class="alt" type="button" onclick="pasteInto('troopTotalsExact')">Plak troepentotalen</button>
-    <button class="alt" id="clearTroopTotals" type="button">Troepenimport wissen</button>
-  </div>
-  <textarea id="troopTotalsExact" placeholder='Plak hier JSON met type "tw-account-troop-totals"'></textarea>
-  <div id="troopImportInfo" class="exact-hint">
-    <div><b>Bron</b><br>Troepenoverzicht “in bezit”</div>
-    <div><b>Koppeling</b><br>Automatisch op actieve TW-accountnaam</div>
-    <div><b>Fallback</b><br>Zonder deze export gebruikt de tool aanwezige troepen</div>
-  </div>
-</div>
 
+  <div class="workflow-content">
+    <div class="import-workflow-grid">
+      <div class="import-card">
+        <div class="import-card-head">
+          <label>Gecombineerd</label>
+          <span id="combinedImportStatus" class="import-badge warn">Ontbreekt</span>
+        </div>
+        <div class="actions">
+          <button class="alt" type="button" onclick="pasteInto('combined')">Plak van klembord</button>
+        </div>
+        <textarea id="combined" placeholder='JSON type "tw-clear-combined"'></textarea>
+      </div>
+
+      <div class="import-card">
+        <div class="import-card-head">
+          <label>Gebouwen</label>
+          <span id="buildingsImportStatus" class="import-badge warn">Ontbreekt</span>
+        </div>
+        <div class="actions">
+          <button class="alt" type="button" onclick="pasteInto('buildings')">Plak van klembord</button>
+        </div>
+        <textarea id="buildings" placeholder='JSON type "tw-clear-buildings"'></textarea>
+      </div>
+
+      <div class="import-card">
+        <div class="import-card-head">
+          <label>Exacte troepentotalen</label>
+          <span id="troopImportBadge" class="import-badge warn">Ontbreekt</span>
+        </div>
+        <div class="actions">
+          <button class="alt" type="button" onclick="pasteInto('troopTotalsExact')">Plak troepentotalen</button>
+          <button class="alt" id="clearTroopTotals" type="button">Wissen</button>
+        </div>
+        <textarea id="troopTotalsExact" placeholder='JSON type "tw-account-troop-totals"'></textarea>
+      </div>
+    </div>
+
+    <div id="troopImportInfo" class="exact-hint">
+      <div><b>Bron</b><br>Troepenoverzicht “in bezit”</div>
+      <div><b>Koppeling</b><br>Automatisch op actieve TW-accountnaam</div>
+      <div><b>Fallback</b><br>Zonder deze export gebruikt de tool aanwezige troepen</div>
+    </div>
+  </div>
+</section>
+
+<section id="settingsPanel" class="workflow-panel">
+  <div class="workflow-head" data-panel-toggle="settingsPanel">
+    <div class="workflow-title">
+      <span class="workflow-number">3</span>
+      <div>
+        <h2>Clear-instellingen</h2>
+        <div class="muted">Doelen, snelheden en gemeten basistijden.</div>
+      </div>
+    </div>
+    <div class="workflow-actions">
+      <span class="workflow-summary">4000 bijl · 3075 LC · 350 ram</span>
+      <button id="toggleSettingsPanel" class="alt workflow-toggle" type="button">Verbergen</button>
+    </div>
+  </div>
+  <div class="workflow-content">
 <div class="inputs">
  <div class="field"><span>Doel bijlen</span><input id="goalAxe" type="number" value="4000"></div>
  <div class="field"><span>Doel LC</span><input id="goalLight" type="number" value="3075"></div>
@@ -607,6 +745,8 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
   <b>stal 20 = 21%</b> en <b>werkplaats 5 = 50%</b>.
   De <b>speelsnelheid</b> en <b>eenhedensnelheid</b> blijven handmatig instelbaar.
 </div>
+  </div>
+</section>
 
 <div class="actions">
  <button id="calc">Importeren & berekenen</button>
@@ -853,6 +993,10 @@ function calculate(){
   const visibleRows = onlyOff ? allRows.filter(isOffVillage) : allRows;
 
   render(visibleRows, Object.keys(bmap).length, allRows);
+
+  // Na een geslaagde berekening wordt de werkruimte compact.
+  setWorkflowPanelCollapsed('dataPanel', true);
+  setWorkflowPanelCollapsed('settingsPanel', true);
  }catch(e){$('#status').className='status error';$('#status').textContent=e.message}
 }
 function render(rows,buildingCount,uploadRows=rows){
@@ -1016,6 +1160,8 @@ function clearAll(){
   latestRows = [];
   $('#status').className='status';
   $('#status').textContent='Alles gewist. Plak beide overzichten om opnieuw te beginnen.';
+  setWorkflowPanelCollapsed('dataPanel', false);
+  updateImportWorkflowStatus();
 }
 
 $('#calc').onclick=calculate;
@@ -1026,6 +1172,19 @@ $('#toggleDetails').onclick=()=>{
   $('#toggleDetails').textContent=document.body.classList.contains('compact')?'Toon details':'Verberg details';
 };
 
+
+
+function updateSettingsSummary(){
+  const panel = document.getElementById('settingsPanel');
+  const summary = panel?.querySelector('.workflow-summary');
+  if(!summary) return;
+  summary.textContent =
+    `${$('#goalAxe').value || 0} bijl · ${$('#goalLight').value || 0} LC · ${$('#goalRam').value || 0} ram`;
+}
+['goalAxe','goalLight','goalRam'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('input',updateSettingsSummary);
+});
+updateSettingsSummary();
 
 function normalizeAccountName(value){
   return String(value || '')
@@ -1041,11 +1200,12 @@ function previewExactTroops(){
 
   if(!text){
     badge.className='import-badge warn';
-    badge.textContent='Nog niet geplakt';
+    badge.textContent='Optioneel';
     info.innerHTML=`
       <div><b>Bron</b><br>Troepenoverzicht “in bezit”</div>
       <div><b>Koppeling</b><br>Automatisch op actieve TW-accountnaam</div>
       <div><b>Fallback</b><br>Zonder deze export gebruikt de tool aanwezige troepen</div>`;
+    updateImportWorkflowStatus();
     return;
   }
 
@@ -1063,6 +1223,7 @@ function previewExactTroops(){
     badge.textContent=match?`Exact: ${match.name}`:`${data.players.length} spelers gevonden`;
 
     const exported=data.exportedAt ? new Date(data.exportedAt).toLocaleString('nl-NL') : 'onbekend';
+    updateImportWorkflowStatus();
     info.innerHTML=`
       <div><b>Spelers gevonden</b><br>${data.players.length}</div>
       <div><b>Actieve account</b><br>${match ? match.name : 'geen exacte match'}</div>
@@ -1070,6 +1231,7 @@ function previewExactTroops(){
   }catch(error){
     badge.className='import-badge warn';
     badge.textContent='Ongeldige troepen-JSON';
+    updateImportWorkflowStatus();
     info.innerHTML=`
       <div><b>Controle</b><br>Gebruik de derde F12-code</div>
       <div><b>Fout</b><br>${error.message}</div>
@@ -1085,21 +1247,99 @@ $('#clearTroopTotals').onclick=()=>{
 $('#activeGameAccountSelect')?.addEventListener('change',previewExactTroops);
 previewExactTroops();
 
-const f12Panel = $('#f12Panel');
-const toggleF12Panel = $('#toggleF12Panel');
-const F12_PANEL_KEY = 'tw_f12_panel_collapsed';
-
-function setF12PanelCollapsed(collapsed){
-  f12Panel.classList.toggle('collapsed', collapsed);
-  toggleF12Panel.textContent = collapsed ? 'F12-uitleg tonen' : 'F12-uitleg verbergen';
-  localStorage.setItem(F12_PANEL_KEY, collapsed ? '1' : '0');
-}
-
-toggleF12Panel.onclick = () => {
-  setF12PanelCollapsed(!f12Panel.classList.contains('collapsed'));
+const WORKFLOW_PANELS = {
+  f12Panel: {
+    button: $('#toggleF12Panel'),
+    key: 'tw_panel_export_collapsed',
+    openText: 'Verbergen',
+    closedText: 'Tonen'
+  },
+  dataPanel: {
+    button: $('#toggleDataPanel'),
+    key: 'tw_panel_data_collapsed',
+    openText: 'Verbergen',
+    closedText: 'Tonen'
+  },
+  settingsPanel: {
+    button: $('#toggleSettingsPanel'),
+    key: 'tw_panel_settings_collapsed',
+    openText: 'Verbergen',
+    closedText: 'Tonen'
+  }
 };
 
-setF12PanelCollapsed(localStorage.getItem(F12_PANEL_KEY) === '1');
+function setWorkflowPanelCollapsed(panelId, collapsed, remember=true){
+  const panel = document.getElementById(panelId);
+  const config = WORKFLOW_PANELS[panelId];
+  if(!panel || !config) return;
+
+  panel.classList.toggle('collapsed', collapsed);
+  config.button.textContent = collapsed ? config.closedText : config.openText;
+
+  if(remember){
+    localStorage.setItem(config.key, collapsed ? '1' : '0');
+  }
+}
+
+Object.entries(WORKFLOW_PANELS).forEach(([panelId, config])=>{
+  const panel = document.getElementById(panelId);
+  const collapsed = localStorage.getItem(config.key) === '1';
+  setWorkflowPanelCollapsed(panelId, collapsed, false);
+
+  config.button.addEventListener('click', event=>{
+    event.stopPropagation();
+    setWorkflowPanelCollapsed(panelId, !panel.classList.contains('collapsed'));
+  });
+
+  panel.querySelector('[data-panel-toggle]')?.addEventListener('click', event=>{
+    if(event.target.closest('button')) return;
+    setWorkflowPanelCollapsed(panelId, !panel.classList.contains('collapsed'));
+  });
+});
+
+function validJsonType(fieldId, expectedType){
+  const text = document.getElementById(fieldId)?.value?.trim();
+  if(!text) return false;
+  try{
+    return JSON.parse(text)?.type === expectedType;
+  }catch{
+    return false;
+  }
+}
+
+function updateImportWorkflowStatus(){
+  const combinedOk = validJsonType('combined','tw-clear-combined');
+  const buildingsOk = validJsonType('buildings','tw-clear-buildings');
+  const troopsOk = validJsonType('troopTotalsExact','tw-account-troop-totals');
+
+  const setBadge = (id, ok, optional=false)=>{
+    const badge = document.getElementById(id);
+    if(!badge) return;
+    badge.className = `import-badge ${ok ? 'good' : 'warn'}`;
+    badge.textContent = ok ? 'Gereed ✓' : optional ? 'Optioneel' : 'Ontbreekt';
+  };
+
+  setBadge('combinedImportStatus',combinedOk);
+  setBadge('buildingsImportStatus',buildingsOk);
+  if(!document.getElementById('troopTotalsExact').value.trim()){
+    setBadge('troopImportBadge',false,true);
+  }
+
+  const requiredReady = Number(combinedOk) + Number(buildingsOk);
+  const totalReady = requiredReady + Number(troopsOk);
+  const summary = document.getElementById('dataPanelSummary');
+  summary.className = `workflow-summary ${requiredReady === 2 ? 'good' : 'warn'}`;
+  summary.textContent = requiredReady === 2
+    ? `${totalReady} van 3 gereed · bouwen mogelijk`
+    : `${totalReady} van 3 gereed`;
+
+  return {combinedOk,buildingsOk,troopsOk,requiredReady,totalReady};
+}
+
+['combined','buildings','troopTotalsExact'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('input',updateImportWorkflowStatus);
+});
+updateImportWorkflowStatus();
 $('#save').onclick=save;$('#clear').onclick=clearAll;
 $('#demo').onclick=()=>{alert('Plak jouw echte exports; deze versie gebruikt bewust geen ingame verbinding of voorbeeldaccountdata.')};
 load();
