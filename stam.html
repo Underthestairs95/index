@@ -23,9 +23,9 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 .error{background:#4a2424;color:#ffd6d1}
 .panel{background:linear-gradient(180deg,#14212b,#101b23);border:1px solid #293f4d;border-radius:16px;padding:16px;box-shadow:0 18px 42px rgba(0,0,0,.24);margin-bottom:14px}
 .filters{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px;align-items:end}
-.summary{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px}
-.stat{background:linear-gradient(180deg,#1a2b38,#162632);border:1px solid #314b5c;border-radius:11px;padding:12px}
-.stat b{font-size:24px;display:block}.stat small{color:var(--muted)}
+.summary{display:grid;grid-template-columns:repeat(12,minmax(74px,1fr));gap:7px}
+.stat{background:linear-gradient(180deg,#182a36,#14232d);border:1px solid #2d4656;border-radius:10px;padding:9px 10px;min-height:58px;display:flex;flex-direction:column;justify-content:center}
+.stat b{font-size:20px;line-height:1;display:block;margin-bottom:5px}.stat small{color:var(--muted);font-size:11px;line-height:1.2}
 .player-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .player-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-top:12px}
 .coords{white-space:pre-wrap;background:#091219;border:1px solid #2b4352;border-radius:10px;padding:12px;margin-top:12px;font:13px/1.5 Consolas,monospace;display:none}
@@ -35,9 +35,27 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 .badge.good{background:#173f2a;color:#bdf2ce}.badge.warn{background:#4a3b17;color:#ffe5a3}.badge.bad{background:#4a2424;color:#ffd1cc}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.tabs button.active{background:var(--accent);color:#221708}
 .hidden{display:none!important}
-@media(max-width:1100px){.summary{grid-template-columns:repeat(4,1fr)}}
-@media(max-width:900px){.summary{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.player-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.wrap{padding:14px 9px 30px}.filters{grid-template-columns:1fr}.summary{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){.filters{grid-template-columns:1fr 1fr}.player-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.wrap{padding:14px 9px 30px}.filters{grid-template-columns:1fr}}
+
+.summary .stat:nth-child(2){border-color:#2b6644;background:linear-gradient(180deg,#183326,#142a20)}
+.summary .stat:nth-child(3),
+.summary .stat:nth-child(4),
+.summary .stat:nth-child(5){border-color:#355a73}
+.summary .stat:nth-child(6),
+.summary .stat:nth-child(7){border-color:#6b5829;background:linear-gradient(180deg,#332b18,#292314)}
+.summary .stat:nth-child(8){border-color:#743b38;background:linear-gradient(180deg,#36201f,#2c1918)}
+.summary .stat:nth-child(9){border-color:#2b6644}
+.summary .stat:nth-child(10){border-color:#77612b}
+.summary .stat:nth-child(11){border-color:#5b3b3a}
+.summary .stat:nth-child(12){border-color:#3b5262}
+
+.summary-panel{padding:12px 14px!important}
+.summary-panel .summary{align-items:stretch}
+@media(max-width:1180px){.summary{grid-template-columns:repeat(6,minmax(90px,1fr))}}
+@media(max-width:760px){.summary{grid-template-columns:repeat(3,minmax(90px,1fr))}}
+@media(max-width:480px){.summary{grid-template-columns:repeat(2,minmax(90px,1fr))}}
+
 </style>
 </head>
 <body>
@@ -81,7 +99,7 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
     </div>
   </section>
 
-  <section class="panel">
+  <section class="panel summary-panel">
     <div class="summary">
       <div class="stat"><b id="sumAccounts">0</b><small>TW-accounts</small></div>
       <div class="stat"><b id="sumReady">0</b><small>Nu klaar</small></div>
