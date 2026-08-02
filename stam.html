@@ -119,6 +119,7 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
   <div class="tabs">
     <button id="tabPlayers" class="active">Spelers</button>
     <button id="tabPlanner" class="alt">Planner</button>
+    <button id="tabTroops" class="alt">Troepentotalen</button>
   </div>
 
   <div id="playersView"></div>
@@ -144,9 +145,36 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
       </table>
     </div>
   </section>
+
+  <section id="troopsView" class="panel hidden">
+    <div class="player-head">
+      <div>
+        <h2>Troepentotalen</h2>
+        <div class="muted">Huidige troepen uit de laatst geüploade gecombineerde exports, inclusief edelmannen.</div>
+      </div>
+      <button id="copyTroopTotals" class="alt">Kopieer totalen</button>
+    </div>
+
+    <div id="tribeTroopSummary" class="summary" style="margin-top:12px"></div>
+
+    <div style="overflow:auto;margin-top:14px">
+      <table class="planner-table">
+        <thead>
+          <tr>
+            <th>TW-account</th>
+            <th>Speer</th><th>Zwaard</th><th>Bijl</th><th>Boog</th>
+            <th>Verkenner</th><th>LC</th><th>Bereden boog</th><th>ZC</th>
+            <th>Ram</th><th>Kata</th><th>Ridder</th><th>Edelman</th>
+          </tr>
+        </thead>
+        <tbody id="troopBody"></tbody>
+      </table>
+    </div>
+  </section>
+
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=9"></script>
-<script src="js/stam.js?v=20"></script>
+<script src="js/stam.js?v=30"></script>
 </body>
 </html>
