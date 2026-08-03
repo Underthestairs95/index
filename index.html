@@ -794,16 +794,27 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
  <div class="field"><span>Doel bijlen</span><input id="goalAxe" type="number" value="4000"></div>
  <div class="field"><span>Doel LC</span><input id="goalLight" type="number" value="3075"></div>
  <div class="field"><span>Doel rammen</span><input id="goalRam" type="number" value="350"></div>
- <div class="field"><span>Rekruteringsfactor</span><input id="recruitFactor" type="number" value="1.25" step="0.01" min="0.01"></div>
+ <div class="field" style="grid-column:span 2">
+   <span>Rekruteringssnelheid</span>
+   <div id="autoRecruitFactor" class="status" style="margin:0">Wordt automatisch bepaald na import.</div>
+ </div>
+ <div class="field">
+   <span>Alleen bij ontbrekende herkenning</span>
+   <button id="toggleRecruitFallback" type="button" class="alt">Handmatige noodwaarde tonen</button>
+ </div>
+ <div id="recruitFallbackField" class="field hidden">
+   <span>Noodfactor</span>
+   <input id="recruitFallback" type="number" value="1.00" step="0.01" min="0.01">
+ </div>
  <div class="field"><span>Referentie bijl — kazerne 25 zonder bonus</span><input id="baseAxe" type="number" value="143.478" step="0.001"></div>
  <div class="field"><span>Referentie LC — stal 20 zonder bonus</span><input id="baseLight" type="number" value="253.5" step="0.001"></div>
  <div class="field"><span>Referentie ram — werkplaats 5 zonder bonus</span><input id="baseRam" type="number" value="1595" step="0.001"></div>
 </div>
 <div class="status" style="margin-top:12px">
-  Vul de totale zichtbare rekruteringsfactor in: <b>1,25 = +25%</b>,
-  <b>1,50 = +50%</b> en <b>1,00 = geen bonus</b>.
-  De bonus die Gecombineerd herkent wordt alleen als controle getoond en niet nogmaals toegepast.
-  <div id="bonusFactorCheck" class="status" style="margin-top:8px">Bonuscontrole volgt na importeren.</div>
+  De calculator leest de rekruteringsbonus automatisch uit de Gecombineerd-export.
+  Hij bepaalt afzonderlijk de factor voor <b>kazerne</b>, <b>stal</b> en <b>werkplaats</b>.
+  Alleen wanneer herkenning ontbreekt verschijnt een waarschuwing en kan een noodfactor worden gebruikt.
+  <div id="bonusFactorCheck" class="status" style="margin-top:8px">Automatische bonuscontrole volgt na importeren.</div>
 </div>
   </div>
 </section>
@@ -830,9 +841,9 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
 
 <details>
 <summary><b>Hoe de berekening werkt</b></summary>
-<p>Aanwezig + lopende queue wordt van het doel afgetrokken. De resterende bouwtijd gebruikt: <code>referentietijd × gebouwfactor ÷ rekruteringsfactor</code>. Queue-eindtijden worden vóór nieuwe productie opgeteld.</p>
-<p><b>Factor:</b> 1,25 betekent +25%; 1,00 betekent geen tijdelijke bonus. Een bonus die in Gecombineerd wordt herkend, dient alleen als controle en wordt niet opnieuw vermenigvuldigd.</p>
-<p><b>Referentiecheck:</b> bij factor 1,25 geeft kazerne 18 een bijltijd van 2:45, stal 11 een LC-tijd van 5:38 en werkplaats 5 een ramtijd van 21:16.</p>
+<p>Aanwezig + lopende queue wordt van het doel afgetrokken. De resterende bouwtijd gebruikt: <code>referentietijd × gebouwfactor ÷ automatisch herkende rekruteringsfactor</code>.</p>
+<p><b>Automatisch:</b> de Gecombineerd-export bevat bonusinformatie per dorp. Daardoor kan de calculator voor kazerne, stal en werkplaats afzonderlijk rekenen, ook wanneer bonusitems per dorp verschillen.</p>
+<p><b>Noodwaarde:</b> alleen wanneer de bonus niet betrouwbaar kan worden herkend verschijnt een waarschuwing. Dan kan tijdelijk een handmatige noodfactor worden gebruikt.</p>
 </details>
 </div>
 
@@ -959,9 +970,6 @@ function unitSeconds(referenceTime, level, building, referenceLevel, recruitFact
   if(!currentFactor || !referenceFactor) return NaN;
 
   const factor = Math.max(0.01, Number(recruitFactor) || 1);
-
-  // Referentietijd is zonder tijdelijke rekruteringsbonus.
-  // De handmatig ingevoerde factor is de totale actuele bonusfactor.
   return referenceTime * (currentFactor / referenceFactor) / factor;
 }
 function queueWait(end){return end?Math.max(0,(end-Date.now())/1000):0}
@@ -1007,35 +1015,56 @@ function calculate(){
 
   const g={axe:+$('#goalAxe').value,light:+$('#goalLight').value,ram:+$('#goalRam').value};
   const base={axe:+$('#baseAxe').value,light:+$('#baseLight').value,ram:+$('#baseRam').value};
-  const recruitFactor=Math.max(.01,+$('#recruitFactor').value || 1);
-
-  // Bonus uit Gecombineerd is alleen een controle, zodat de factor niet dubbel telt.
   const detected = {barracks:new Set(),stable:new Set(),garage:new Set()};
   combinedVillages.forEach(v=>{
     ['barracks','stable','garage'].forEach(building=>{
       const value=Number(v.bonuses?.[building] || 0);
-      if(value>0) detected[building].add(value);
+      if(value>=0) detected[building].add(value);
     });
   });
 
-  const labels={barracks:'Kazerne',stable:'Stal',garage:'Werkplaats'};
-  const detectedParts=Object.entries(detected)
-    .filter(([,values])=>values.size)
-    .map(([building,values])=>`${labels[building]} +${[...values].sort((a,b)=>a-b).join('/')}%`);
+  const fallbackFactor=Math.max(.01,+$('#recruitFallback').value || 1);
+  const buildingLabels={barracks:'Kazerne',stable:'Stal',garage:'Werkplaats'};
+  const recruitFactors={};
+  const warnings=[];
+
+  Object.entries(detected).forEach(([building,values])=>{
+    const positive=[...values].filter(value=>value>0).sort((a,b)=>a-b);
+    const zeroSeen=values.has(0);
+
+    if(positive.length===1 && !zeroSeen){
+      recruitFactors[building]=1+positive[0]/100;
+    }else if(positive.length===1 && zeroSeen){
+      // Sommige dorpen hebben geen bonusitem, andere wel.
+      // De factor wordt daarom per dorp bepaald tijdens de berekening.
+      recruitFactors[building]=null;
+    }else if(positive.length>1){
+      recruitFactors[building]=null;
+      warnings.push(`${buildingLabels[building]}: meerdere bonussen (${positive.map(v=>`+${v}%`).join(', ')})`);
+    }else{
+      recruitFactors[building]=fallbackFactor;
+      warnings.push(`${buildingLabels[building]}: geen bonus herkend, noodfactor ${fallbackFactor.toFixed(2)}`);
+    }
+  });
+
+  const statusParts=Object.entries(recruitFactors).map(([building,factor])=>{
+    if(factor){
+      return `${buildingLabels[building]} ${factor.toFixed(2)}`;
+    }
+    return `${buildingLabels[building]} per dorp`;
+  });
+
+  const autoStatus=$('#autoRecruitFactor');
+  autoStatus.className=`status ${warnings.length?'error':'ok'}`;
+  autoStatus.textContent=warnings.length
+    ? `⚠️ ${statusParts.join(' · ')}`
+    : `✅ Automatisch: ${statusParts.join(' · ')}`;
 
   const checkEl=$('#bonusFactorCheck');
-  if(detectedParts.length){
-    const percentages=[...new Set(Object.values(detected).flatMap(values=>[...values]))];
-    const expectedFactors=percentages.map(value=>1+value/100);
-    const matches=expectedFactors.some(value=>Math.abs(value-recruitFactor)<0.011);
-    checkEl.className=`status ${matches?'ok':'error'}`;
-    checkEl.textContent=matches
-      ? `✅ Gecombineerd herkent ${detectedParts.join(' · ')}. Factor ${recruitFactor.toFixed(2)} komt overeen.`
-      : `⚠️ Gecombineerd herkent ${detectedParts.join(' · ')}, maar ingevoerd is factor ${recruitFactor.toFixed(2)}. Controleer dit vóór uploaden.`;
-  }else{
-    checkEl.className='status';
-    checkEl.textContent=`Geen tijdelijke bonus herkend in Gecombineerd. Ingevoerde factor: ${recruitFactor.toFixed(2)}.`;
-  }
+  checkEl.className=`status ${warnings.length?'error':'ok'}`;
+  checkEl.textContent=warnings.length
+    ? `Controle nodig: ${warnings.join(' · ')}`
+    : `✅ Bonusitems betrouwbaar herkend. Geen handmatige invoer nodig.`;
 
   let rows=Object.values(bmap).map(b=>{
     const v = combinedMap[b.coord] || {
@@ -1063,7 +1092,12 @@ function calculate(){
     };
     const halfTimes={};
     ['axe','light','ram'].forEach(u=>{
-      const perUnit=unitSeconds(base[u],levels[u],buildings[u],referenceLevels[u],recruitFactor);
+      const building=buildings[u];
+      const villageBonus=Number(c?.bonuses?.[building] || 0);
+      const automaticFactor=villageBonus>0
+        ? 1+villageBonus/100
+        : (recruitFactors[building] || fallbackFactor);
+      const perUnit=unitSeconds(base[u],levels[u],building,referenceLevels[u],automaticFactor);
       times[u]=miss[u]===0?0:waits[u]+miss[u]*perUnit;
       halfTimes[u]=halfMiss[u]===0?0:waits[u]+halfMiss[u]*perUnit;
     });
@@ -1193,7 +1227,7 @@ function save(){
     goalAxe: $('#goalAxe').value,
     goalLight: $('#goalLight').value,
     goalRam: $('#goalRam').value,
-    recruitFactor: $('#recruitFactor').value,
+    recruitFallback: $('#recruitFallback').value,
     baseAxe: $('#baseAxe').value,
     baseLight: $('#baseLight').value,
     baseRam: $('#baseRam').value,
@@ -1212,7 +1246,7 @@ function load(){
     if(settings){
       [
         'goalAxe','goalLight','goalRam',
-        'recruitFactor',
+        'recruitFallback',
         'baseAxe','baseLight','baseRam'
       ].forEach(id=>{
         if(settings[id] !== undefined){
@@ -1258,14 +1292,24 @@ $('#toggleDetails').onclick=()=>{
 
 
 
+
+const recruitFallbackField=$('#recruitFallbackField');
+const toggleRecruitFallback=$('#toggleRecruitFallback');
+toggleRecruitFallback.onclick=()=>{
+  const hidden=recruitFallbackField.classList.toggle('hidden');
+  toggleRecruitFallback.textContent=hidden
+    ? 'Handmatige noodwaarde tonen'
+    : 'Handmatige noodwaarde verbergen';
+};
+
 function updateSettingsSummary(){
   const panel = document.getElementById('settingsPanel');
   const summary = panel?.querySelector('.workflow-summary');
   if(!summary) return;
   summary.textContent =
-    `${$('#goalAxe').value || 0} bijl · ${$('#goalLight').value || 0} LC · ${$('#goalRam').value || 0} ram · factor ${$('#recruitFactor').value || 1}`;
+    `${$('#goalAxe').value || 0} bijl · ${$('#goalLight').value || 0} LC · ${$('#goalRam').value || 0} ram · factor automatisch`;
 }
-['goalAxe','goalLight','goalRam','recruitFactor'].forEach(id=>{
+['goalAxe','goalLight','goalRam'].forEach(id=>{
   document.getElementById(id)?.addEventListener('input',updateSettingsSummary);
 });
 updateSettingsSummary();
@@ -1430,5 +1474,5 @@ load();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=5"></script>
-<script src="js/clear-stam.js?v=41"></script>
+<script src="js/clear-stam.js?v=60"></script>
 </body></html>
