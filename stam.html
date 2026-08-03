@@ -161,6 +161,48 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
   .detail-troops{grid-template-columns:repeat(2,1fr)}
 }
 
+.command-day-grid{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(72px,1fr));
+  gap:7px;
+}
+.command-day-card{
+  min-width:0;
+  padding:10px 8px;
+  border-radius:10px;
+  border:1px solid #294250;
+  background:#13232d;
+  text-align:center;
+}
+.command-day-card strong{
+  display:block;
+  font-size:20px;
+  line-height:1;
+  margin-bottom:6px;
+}
+.command-day-card span{
+  display:block;
+  color:#dce7ed;
+  font-size:11px;
+  font-weight:800;
+}
+.command-day-card small{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  font-size:10px;
+}
+.command-day-card.has-value{
+  border-color:#7a6027;
+  background:linear-gradient(180deg,#302915,#1c201d);
+}
+@media(max-width:1050px){
+  .command-day-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:650px){
+  .command-day-grid{grid-template-columns:repeat(2,1fr)}
+}
+
 </style>
 </head>
 <body>
@@ -339,6 +381,6 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=9"></script>
-<script src="js/stam.js?v=50"></script>
+<script src="js/stam.js?v=51"></script>
 </body>
 </html>
