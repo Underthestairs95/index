@@ -277,9 +277,6 @@
     const under7 = all.filter(v=>v.total_seconds>432000 && v.total_seconds<=604800).length;
     const over7 = all.filter(v=>v.total_seconds>604800).length;
 
-    const full = rows.reduce((s,r)=>s+r.cats.full.length,0);
-    const half = rows.reduce((s,r)=>s+r.cats.half.length,0);
-    const building = rows.reduce((s,r)=>s+r.cats.building.length,0);
     const avg = all.length ? Math.round(all.reduce((s,v)=>s+v.total_seconds,0)/all.length) : NaN;
 
     document.getElementById("sumAccounts").textContent = accounts;
@@ -290,9 +287,6 @@
     document.getElementById("sumUnder5").textContent = under5;
     document.getElementById("sumUnder7").textContent = under7;
     document.getElementById("sumOver7").textContent = over7;
-    document.getElementById("sumFull").textContent = full;
-    document.getElementById("sumHalf").textContent = half;
-    document.getElementById("sumBuilding").textContent = building;
     document.getElementById("sumAverage").textContent = fmtDuration(avg);
   }
 
