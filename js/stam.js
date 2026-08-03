@@ -227,17 +227,36 @@
     playerDetailVillages.innerHTML = [...row.villages]
       .sort((a,b)=>a.total_seconds-b.total_seconds)
       .map(village=>{
-        const state = village.total_seconds <= 1
-          ? "Klaar"
-          : village.total_seconds <= 86400
-            ? `Full in ${fmtDuration(village.total_seconds)}`
-            : village.half_total_seconds <= 259200
-              ? `Halve in ${fmtDuration(village.half_total_seconds)}`
-              : fmtDuration(village.total_seconds);
+        const fullSeconds = Number(village.total_seconds || 0);
+        const halfSeconds = Number(village.half_total_seconds || 0);
+
+        let rowClass = "building";
+        let badgeClass = "timer";
+        let status = "";
+
+        if (fullSeconds <= 1) {
+          rowClass = "full-ready";
+          badgeClass = "full-ready";
+          status = "🟢 FULL READY";
+        } else if (halfSeconds <= 1) {
+          rowClass = "half-ready";
+          badgeClass = "half-ready";
+          status = "🟡 HALF READY";
+        } else if (fullSeconds <= 86400) {
+          status = `⏳ FULL IN ${fmtDuration(fullSeconds).toUpperCase()}`;
+        } else if (halfSeconds <= 259200) {
+          status = `⏳ HALF IN ${fmtDuration(halfSeconds).toUpperCase()}`;
+        } else {
+          status = `⏳ FULL IN ${fmtDuration(fullSeconds).toUpperCase()}`;
+        }
+
         return `
-          <div class="detail-village">
-            <span><strong>${village.village_name || village.coord}</strong><br><small>${village.coord}</small></span>
-            <strong>${state}</strong>
+          <div class="detail-village ${rowClass}">
+            <span>
+              <strong>${village.village_name || village.coord}</strong>
+              <br><small>${village.coord}</small>
+            </span>
+            <span class="village-status ${badgeClass}">${status}</span>
           </div>
         `;
       }).join("") || '<div class="muted">Geen dorpen gevonden.</div>';
