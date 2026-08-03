@@ -515,6 +515,15 @@
       document.getElementById(id).addEventListener(id==="searchFilter"?"input":"change",renderAll);
     });
 
+    const closePlayerDetail = document.getElementById("playerDetailClose");
+    if (closePlayerDetail) {
+      closePlayerDetail.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        playerDetail.classList.add("hidden");
+      };
+    }
+
     document.getElementById("copyFiltered").onclick = async e=>{
       const rows = filteredRows();
       const coords = rows.flatMap(selectedVillageList);
