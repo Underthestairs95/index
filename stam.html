@@ -203,6 +203,60 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
   .command-day-grid{grid-template-columns:repeat(2,1fr)}
 }
 
+/* DORPSTATUS BADGES */
+.detail-village{
+  align-items:center;
+  border-left:3px solid transparent;
+  transition:background .15s ease,border-color .15s ease;
+}
+.detail-village.full-ready{
+  background:linear-gradient(90deg,rgba(47,166,91,.13),#13222c 40%);
+  border-left-color:#49b96d;
+}
+.detail-village.half-ready{
+  background:linear-gradient(90deg,rgba(214,181,74,.12),#13222c 40%);
+  border-left-color:#d6b54a;
+}
+.detail-village.building{
+  background:#13222c;
+  border-left-color:#314b5a;
+}
+.village-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-width:118px;
+  padding:6px 9px;
+  border-radius:999px;
+  border:1px solid #3f5b6c;
+  background:#24313b;
+  color:#d7e6ef;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+.village-status.full-ready{
+  background:#1f5f38;
+  color:#dfffe8;
+  border-color:#49b96d;
+}
+.village-status.half-ready{
+  background:#5f5220;
+  color:#fff4c7;
+  border-color:#d6b54a;
+}
+.village-status.timer{
+  background:#24313b;
+  color:#d7e6ef;
+  border-color:#3f5b6c;
+}
+@media(max-width:620px){
+  .detail-village{align-items:flex-start}
+  .village-status{min-width:auto;font-size:10px}
+}
+
 </style>
 </head>
 <body>
@@ -381,6 +435,6 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=9"></script>
-<script src="js/stam.js?v=51"></script>
+<script src="js/stam.js?v=52"></script>
 </body>
 </html>
