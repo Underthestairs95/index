@@ -23,7 +23,7 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 .error{background:#4a2424;color:#ffd6d1}
 .panel{background:linear-gradient(180deg,#14212b,#101b23);border:1px solid #293f4d;border-radius:16px;padding:16px;box-shadow:0 18px 42px rgba(0,0,0,.24);margin-bottom:14px}
 .filters{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px;align-items:end}
-.summary{display:grid;grid-template-columns:repeat(12,minmax(74px,1fr));gap:7px}
+.summary{display:grid;grid-template-columns:repeat(9,minmax(82px,1fr));gap:7px}
 .stat{background:linear-gradient(180deg,#182a36,#14232d);border:1px solid #2d4656;border-radius:10px;padding:9px 10px;min-height:58px;display:flex;flex-direction:column;justify-content:center}
 .stat b{font-size:20px;line-height:1;display:block;margin-bottom:5px}.stat small{color:var(--muted);font-size:11px;line-height:1.2}
 .player-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -45,10 +45,7 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 .summary .stat:nth-child(6),
 .summary .stat:nth-child(7){border-color:#6b5829;background:linear-gradient(180deg,#332b18,#292314)}
 .summary .stat:nth-child(8){border-color:#743b38;background:linear-gradient(180deg,#36201f,#2c1918)}
-.summary .stat:nth-child(9){border-color:#2b6644}
-.summary .stat:nth-child(10){border-color:#77612b}
-.summary .stat:nth-child(11){border-color:#5b3b3a}
-.summary .stat:nth-child(12){border-color:#3b5262}
+.summary .stat:nth-child(9){border-color:#3b5262}
 
 .summary-panel{padding:12px 14px!important}
 .summary-panel .summary{align-items:stretch}
@@ -342,9 +339,6 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
       <div class="stat"><b id="sumUnder5">0</b><small>3–5 dagen</small></div>
       <div class="stat"><b id="sumUnder7">0</b><small>5–7 dagen</small></div>
       <div class="stat"><b id="sumOver7">0</b><small>&gt; 7 dagen</small></div>
-      <div class="stat"><b id="sumFull">0</b><small>Full &lt; 1 dag</small></div>
-      <div class="stat"><b id="sumHalf">0</b><small>Halve &lt; 3 dagen</small></div>
-      <div class="stat"><b id="sumBuilding">0</b><small>Nog in aanbouw</small></div>
       <div class="stat"><b id="sumAverage">—</b><small>Gemiddelde bouwtijd</small></div>
     </div>
   </section>
@@ -435,6 +429,6 @@ select,input{padding:10px 12px;border-radius:9px;border:1px solid #395566;backgr
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js?v=9"></script>
-<script src="js/stam.js?v=52"></script>
+<script src="js/stam.js?v=53"></script>
 </body>
 </html>
