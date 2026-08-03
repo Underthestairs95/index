@@ -794,15 +794,16 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
  <div class="field"><span>Doel bijlen</span><input id="goalAxe" type="number" value="4000"></div>
  <div class="field"><span>Doel LC</span><input id="goalLight" type="number" value="3075"></div>
  <div class="field"><span>Doel rammen</span><input id="goalRam" type="number" value="350"></div>
- <div class="field"><span>Speelsnelheid</span><input id="gameSpeed" type="number" value="1.5" step="0.0001" min="0.0001"></div><div class="field"><span>Eenhedensnelheid</span><input id="unitSpeed" type="number" value="0.6667" step="0.0001" min="0.0001"></div>
- <div class="field"><span>Gemeten bijltijd op kazerne 25</span><input id="baseAxe" type="number" value="96"></div>
- <div class="field"><span>Gemeten LC-tijd op stal 20</span><input id="baseLight" type="number" value="185"></div>
- <div class="field"><span>Gemeten ramtijd op werkplaats 5</span><input id="baseRam" type="number" value="1181"></div>
+ <div class="field"><span>Rekruteringsfactor</span><input id="recruitFactor" type="number" value="1.25" step="0.01" min="0.01"></div>
+ <div class="field"><span>Referentie bijl — kazerne 25 zonder bonus</span><input id="baseAxe" type="number" value="143.478" step="0.001"></div>
+ <div class="field"><span>Referentie LC — stal 20 zonder bonus</span><input id="baseLight" type="number" value="253.5" step="0.001"></div>
+ <div class="field"><span>Referentie ram — werkplaats 5 zonder bonus</span><input id="baseRam" type="number" value="1595" step="0.001"></div>
 </div>
 <div class="status" style="margin-top:12px">
-  Gebouwfactoren volgens de TW-tabel. Referentie: <b>kazerne 25 = 16%</b>,
-  <b>stal 20 = 21%</b> en <b>werkplaats 5 = 50%</b>.
-  De <b>speelsnelheid</b> en <b>eenhedensnelheid</b> blijven handmatig instelbaar.
+  Vul de totale zichtbare rekruteringsfactor in: <b>1,25 = +25%</b>,
+  <b>1,50 = +50%</b> en <b>1,00 = geen bonus</b>.
+  De bonus die Gecombineerd herkent wordt alleen als controle getoond en niet nogmaals toegepast.
+  <div id="bonusFactorCheck" class="status" style="margin-top:8px">Bonuscontrole volgt na importeren.</div>
 </div>
   </div>
 </section>
@@ -829,8 +830,9 @@ button.alt{background:linear-gradient(180deg,#31495b,#294051);color:#f3f7fa}
 
 <details>
 <summary><b>Hoe de berekening werkt</b></summary>
-<p>Aanwezig + lopende queue wordt van het doel afgetrokken. De resterende bouwtijd gebruikt voorlopig de officiële gebouwfactoren: <code>standaardtijd × gebouwfactor ÷ (speelsnelheid × eenhedensnelheid)</code>. Queue-eindtijden worden opgeteld vóór nieuwe productie. Snelheidsrelieken en bonusdorpen worden waar herkenbaar meegenomen.</p><p><b>Referentiemeting:</b> bijl = 96 sec op kazerne 25, LC = 185 sec op stal 20 en ram = 1181 sec op werkplaats 5. De calculator gebruikt de officiële tijdsfactor per gebouwlevel. Speelsnelheid en eenhedensnelheid kun je apart aanpassen voor andere werelden.</p>
-<p><b>Let op:</b> controleer de drie basistijden met één dorp in het spel. Zodra die kloppen, kloppen alle dorpen met verschillende levels ook.</p>
+<p>Aanwezig + lopende queue wordt van het doel afgetrokken. De resterende bouwtijd gebruikt: <code>referentietijd × gebouwfactor ÷ rekruteringsfactor</code>. Queue-eindtijden worden vóór nieuwe productie opgeteld.</p>
+<p><b>Factor:</b> 1,25 betekent +25%; 1,00 betekent geen tijdelijke bonus. Een bonus die in Gecombineerd wordt herkend, dient alleen als controle en wordt niet opnieuw vermenigvuldigd.</p>
+<p><b>Referentiecheck:</b> bij factor 1,25 geeft kazerne 18 een bijltijd van 2:45, stal 11 een LC-tijd van 5:38 en werkplaats 5 een ramtijd van 21:16.</p>
 </details>
 </div>
 
@@ -951,19 +953,16 @@ const BUILDING_FACTORS = {
   }
 };
 
-function unitSeconds(referenceTime, level, building, referenceLevel, gameSpeed, unitSpeed, bonus){
+function unitSeconds(referenceTime, level, building, referenceLevel, recruitFactor){
   const currentFactor = BUILDING_FACTORS[building]?.[level];
   const referenceFactor = BUILDING_FACTORS[building]?.[referenceLevel];
   if(!currentFactor || !referenceFactor) return NaN;
 
-  const effectiveSpeed = gameSpeed * unitSpeed;
+  const factor = Math.max(0.01, Number(recruitFactor) || 1);
 
-  // De referentietijd is gemeten op de ingestelde snelheden.
-  // Eerst terug naar de standaardtijd op 100%, daarna naar huidig gebouwlevel.
-  const standard100 = referenceTime * effectiveSpeed / (referenceFactor / 100);
-  const normal = standard100 * (currentFactor / 100) / effectiveSpeed;
-
-  return normal / (1 + bonus / 100);
+  // Referentietijd is zonder tijdelijke rekruteringsbonus.
+  // De handmatig ingevoerde factor is de totale actuele bonusfactor.
+  return referenceTime * (currentFactor / referenceFactor) / factor;
 }
 function queueWait(end){return end?Math.max(0,(end-Date.now())/1000):0}
 function fmt(sec){
@@ -1008,8 +1007,35 @@ function calculate(){
 
   const g={axe:+$('#goalAxe').value,light:+$('#goalLight').value,ram:+$('#goalRam').value};
   const base={axe:+$('#baseAxe').value,light:+$('#baseLight').value,ram:+$('#baseRam').value};
-  const gameSpeed=Math.max(.0001,+$('#gameSpeed').value);
-  const unitSpeed=Math.max(.0001,+$('#unitSpeed').value);
+  const recruitFactor=Math.max(.01,+$('#recruitFactor').value || 1);
+
+  // Bonus uit Gecombineerd is alleen een controle, zodat de factor niet dubbel telt.
+  const detected = {barracks:new Set(),stable:new Set(),garage:new Set()};
+  combinedVillages.forEach(v=>{
+    ['barracks','stable','garage'].forEach(building=>{
+      const value=Number(v.bonuses?.[building] || 0);
+      if(value>0) detected[building].add(value);
+    });
+  });
+
+  const labels={barracks:'Kazerne',stable:'Stal',garage:'Werkplaats'};
+  const detectedParts=Object.entries(detected)
+    .filter(([,values])=>values.size)
+    .map(([building,values])=>`${labels[building]} +${[...values].sort((a,b)=>a-b).join('/')}%`);
+
+  const checkEl=$('#bonusFactorCheck');
+  if(detectedParts.length){
+    const percentages=[...new Set(Object.values(detected).flatMap(values=>[...values]))];
+    const expectedFactors=percentages.map(value=>1+value/100);
+    const matches=expectedFactors.some(value=>Math.abs(value-recruitFactor)<0.011);
+    checkEl.className=`status ${matches?'ok':'error'}`;
+    checkEl.textContent=matches
+      ? `✅ Gecombineerd herkent ${detectedParts.join(' · ')}. Factor ${recruitFactor.toFixed(2)} komt overeen.`
+      : `⚠️ Gecombineerd herkent ${detectedParts.join(' · ')}, maar ingevoerd is factor ${recruitFactor.toFixed(2)}. Controleer dit vóór uploaden.`;
+  }else{
+    checkEl.className='status';
+    checkEl.textContent=`Geen tijdelijke bonus herkend in Gecombineerd. Ingevoerde factor: ${recruitFactor.toFixed(2)}.`;
+  }
 
   let rows=Object.values(bmap).map(b=>{
     const v = combinedMap[b.coord] || {
@@ -1037,7 +1063,7 @@ function calculate(){
     };
     const halfTimes={};
     ['axe','light','ram'].forEach(u=>{
-      const perUnit=unitSeconds(base[u],levels[u],buildings[u],referenceLevels[u],gameSpeed,unitSpeed,bonus[u]);
+      const perUnit=unitSeconds(base[u],levels[u],buildings[u],referenceLevels[u],recruitFactor);
       times[u]=miss[u]===0?0:waits[u]+miss[u]*perUnit;
       halfTimes[u]=halfMiss[u]===0?0:waits[u]+halfMiss[u]*perUnit;
     });
@@ -1167,8 +1193,7 @@ function save(){
     goalAxe: $('#goalAxe').value,
     goalLight: $('#goalLight').value,
     goalRam: $('#goalRam').value,
-    gameSpeed: $('#gameSpeed').value,
-    unitSpeed: $('#unitSpeed').value,
+    recruitFactor: $('#recruitFactor').value,
     baseAxe: $('#baseAxe').value,
     baseLight: $('#baseLight').value,
     baseRam: $('#baseRam').value,
@@ -1187,7 +1212,7 @@ function load(){
     if(settings){
       [
         'goalAxe','goalLight','goalRam',
-        'gameSpeed','unitSpeed',
+        'recruitFactor',
         'baseAxe','baseLight','baseRam'
       ].forEach(id=>{
         if(settings[id] !== undefined){
@@ -1238,9 +1263,9 @@ function updateSettingsSummary(){
   const summary = panel?.querySelector('.workflow-summary');
   if(!summary) return;
   summary.textContent =
-    `${$('#goalAxe').value || 0} bijl · ${$('#goalLight').value || 0} LC · ${$('#goalRam').value || 0} ram`;
+    `${$('#goalAxe').value || 0} bijl · ${$('#goalLight').value || 0} LC · ${$('#goalRam').value || 0} ram · factor ${$('#recruitFactor').value || 1}`;
 }
-['goalAxe','goalLight','goalRam'].forEach(id=>{
+['goalAxe','goalLight','goalRam','recruitFactor'].forEach(id=>{
   document.getElementById(id)?.addEventListener('input',updateSettingsSummary);
 });
 updateSettingsSummary();
