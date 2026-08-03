@@ -171,19 +171,27 @@
     document.getElementById("commandActive").textContent =
       `${rows.length ? Math.round(recentRows.length / rows.length * 100) : 0}%`;
 
-    const today = allVillages.filter(v=>v.total_seconds > 0 && v.total_seconds <= 86400).length;
-    const tomorrow = allVillages.filter(v=>v.total_seconds > 86400 && v.total_seconds <= 172800).length;
-    const within3 = allVillages.filter(v=>v.total_seconds > 172800 && v.total_seconds <= 259200).length;
+    const dayBuckets = Array.from({length:7}, (_,index) => {
+      const lower = index * 86400;
+      const upper = (index + 1) * 86400;
 
-    document.getElementById("commandPlanner").innerHTML = [
-      ["Binnen 24 uur",today],
-      ["Binnen 1–2 dagen",tomorrow],
-      ["Binnen 2–3 dagen",within3]
-    ].map(([label,value])=>`
-      <div class="command-mini-row">
-        <span>${label}</span><strong>${numberFmt.format(value)} dorpen</strong>
+      return allVillages.filter(village =>
+        village.total_seconds > lower &&
+        village.total_seconds <= upper
+      ).length;
+    });
+
+    document.getElementById("commandPlanner").innerHTML = `
+      <div class="command-day-grid">
+        ${dayBuckets.map((value,index)=>`
+          <div class="command-day-card ${value ? "has-value" : ""}">
+            <strong>${numberFmt.format(value)}</strong>
+            <span>Dag ${index + 1}</span>
+            <small>${index === 0 ? "binnen 24 uur" : `${index}–${index + 1} dagen`}</small>
+          </div>
+        `).join("")}
       </div>
-    `).join("");
+    `;
 
     document.getElementById("commandActivity").innerHTML =
       [...rows]
