@@ -8,6 +8,12 @@
   const troopBody = document.getElementById("troopBody");
   const tribeTroopSummary = document.getElementById("tribeTroopSummary");
   const tribeSelect = document.getElementById("tribeSelect");
+  const playerDetail = document.getElementById("playerDetail");
+  const playerDetailName = document.getElementById("playerDetailName");
+  const playerDetailMeta = document.getElementById("playerDetailMeta");
+  const playerDetailStats = document.getElementById("playerDetailStats");
+  const playerDetailTroops = document.getElementById("playerDetailTroops");
+  const playerDetailVillages = document.getElementById("playerDetailVillages");
 
   let availableTribes = [];
   let activeTribeId = null;
@@ -139,6 +145,99 @@
     return row.cats[cat];
   }
 
+  function renderCommandCenter(rows) {
+    const tribe = availableTribes.find(t => t.id === activeTribeId);
+    const allVillages = rows.flatMap(row => row.villages);
+    const full = rows.reduce((sum,row)=>sum+row.cats.full.length,0);
+    const nobles = rows.reduce((sum,row)=>sum+Number(row.troopTotals?.snob || 0),0);
+
+    const now = Date.now();
+    const recentRows = rows.filter(row =>
+      now - new Date(row.status.updated_at).getTime() <= 86400000
+    );
+    const latest = [...rows].sort((a,b) =>
+      new Date(b.status.updated_at) - new Date(a.status.updated_at)
+    )[0];
+
+    document.getElementById("commandTribeName").textContent =
+      tribe?.name || "Stam";
+    document.getElementById("commandWorld").textContent =
+      tribe?.world_code || "Wereld";
+    document.getElementById("commandLatest").textContent =
+      `Laatste upload: ${latest ? age(latest.status.updated_at) : "—"}`;
+    document.getElementById("commandFull").textContent = numberFmt.format(full);
+    document.getElementById("commandNobles").textContent = numberFmt.format(nobles);
+    document.getElementById("commandRecent").textContent = recentRows.length;
+    document.getElementById("commandActive").textContent =
+      `${rows.length ? Math.round(recentRows.length / rows.length * 100) : 0}%`;
+
+    const today = allVillages.filter(v=>v.total_seconds > 0 && v.total_seconds <= 86400).length;
+    const tomorrow = allVillages.filter(v=>v.total_seconds > 86400 && v.total_seconds <= 172800).length;
+    const within3 = allVillages.filter(v=>v.total_seconds > 172800 && v.total_seconds <= 259200).length;
+
+    document.getElementById("commandPlanner").innerHTML = [
+      ["Binnen 24 uur",today],
+      ["Binnen 1–2 dagen",tomorrow],
+      ["Binnen 2–3 dagen",within3]
+    ].map(([label,value])=>`
+      <div class="command-mini-row">
+        <span>${label}</span><strong>${numberFmt.format(value)} dorpen</strong>
+      </div>
+    `).join("");
+
+    document.getElementById("commandActivity").innerHTML =
+      [...rows]
+        .sort((a,b)=>new Date(b.status.updated_at)-new Date(a.status.updated_at))
+        .slice(0,4)
+        .map(row=>`
+          <div class="command-mini-row">
+            <span>${row.account.name}</span>
+            <small>${age(row.status.updated_at)}</small>
+          </div>
+        `).join("") || '<div class="muted">Nog geen uploads.</div>';
+  }
+
+  function openPlayerDetail(row) {
+    playerDetailName.textContent = row.account.name;
+    playerDetailMeta.textContent =
+      `${row.villages.length} dorpen · bijgewerkt ${age(row.status.updated_at)} · gemiddeld ${fmtDuration(row.avg)}`;
+
+    playerDetailStats.innerHTML = `
+      <div class="detail-kpi"><b>${row.cats.full.length}</b><small>Full &lt; 1 dag</small></div>
+      <div class="detail-kpi"><b>${row.cats.half.length}</b><small>Halve &lt; 3 dagen</small></div>
+      <div class="detail-kpi"><b>${row.cats.building.length}</b><small>Nog in aanbouw</small></div>
+    `;
+
+    const troopOrder = ["spear","sword","axe","spy","light","heavy","ram","catapult","knight","snob"];
+    playerDetailTroops.innerHTML = troopOrder.map(key=>`
+      <div class="detail-troop">
+        <b>${numberFmt.format(Number(row.troopTotals?.[key] || 0))}</b>
+        <small>${troopLabels[key]}</small>
+      </div>
+    `).join("");
+
+    playerDetailVillages.innerHTML = [...row.villages]
+      .sort((a,b)=>a.total_seconds-b.total_seconds)
+      .map(village=>{
+        const state = village.total_seconds <= 1
+          ? "Klaar"
+          : village.total_seconds <= 86400
+            ? `Full in ${fmtDuration(village.total_seconds)}`
+            : village.half_total_seconds <= 259200
+              ? `Halve in ${fmtDuration(village.half_total_seconds)}`
+              : fmtDuration(village.total_seconds);
+        return `
+          <div class="detail-village">
+            <span><strong>${village.village_name || village.coord}</strong><br><small>${village.coord}</small></span>
+            <strong>${state}</strong>
+          </div>
+        `;
+      }).join("") || '<div class="muted">Geen dorpen gevonden.</div>';
+
+    playerDetail.classList.remove("hidden");
+    playerDetail.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
   function renderSummary(rows) {
     const accounts = rows.length;
     const all = rows.flatMap(r=>r.villages);
@@ -174,34 +273,86 @@
     playersView.innerHTML = "";
     rows.forEach(r=>{
       const text = exportText(r.villages);
+      const total = Math.max(1,r.villages.length);
+      const fullPct = r.cats.full.length / total * 100;
+      const halfPct = r.cats.half.length / total * 100;
+      const buildPct = Math.max(0,100-fullPct-halfPct);
+
       const card = document.createElement("section");
-      card.className = "panel";
+      card.className = "panel player-card";
       card.innerHTML = `
         <div class="player-head">
           <div>
-            <h2>${r.account.name}</h2>
-            <div class="muted">${r.villages.length} dorpen · bijgewerkt ${age(r.status.updated_at)}</div>
+            <h2 class="player-name">${r.account.name}</h2>
+            <div class="player-sub">
+              <span>🏘 ${r.villages.length} dorpen</span>
+              <span>⏳ ${fmtDuration(r.avg)} gemiddeld</span>
+              <span>↻ ${age(r.status.updated_at)}</span>
+            </div>
           </div>
-          <div>
+          <div class="player-card-actions">
+            <button class="alt details">Spelerinfo</button>
             <button class="alt toggle">Bekijk coords</button>
             <button class="copy">Kopieer coords</button>
           </div>
         </div>
-        <div class="player-grid">
-          <div class="stat"><b>${r.cats.full.length}</b><small>Full &lt; 1 dag</small></div>
-          <div class="stat"><b>${r.cats.half.length}</b><small>Halve &lt; 3 dagen</small></div>
-          <div class="stat"><b>${r.cats.building.length}</b><small>Nog in aanbouw</small></div>
-          <div class="stat"><b>${fmtDuration(r.avg)}</b><small>Gemiddelde bouwtijd</small></div>
+
+        <div class="player-progress-wrap">
+          <div class="player-progress-head">
+            <span>Clearvoortgang</span>
+            <strong>${Math.round((r.cats.full.length+r.cats.half.length)/total*100)}%</strong>
+          </div>
+          <div class="player-progress">
+            <span class="done" style="width:${fullPct}%"></span>
+            <span class="near" style="width:${halfPct}%"></span>
+            <span class="build" style="width:${buildPct}%"></span>
+          </div>
         </div>
+
+        <div class="player-status-row">
+          <div class="player-status clickable status-full">
+            <span><i class="status-dot good"></i><small>Klaar / full</small></span><b>${r.cats.full.length}</b>
+          </div>
+          <div class="player-status clickable status-half">
+            <span><i class="status-dot warn"></i><small>Bijna klaar</small></span><b>${r.cats.half.length}</b>
+          </div>
+          <div class="player-status clickable status-building">
+            <span><i class="status-dot bad"></i><small>Nog bouwen</small></span><b>${r.cats.building.length}</b>
+          </div>
+          <div class="player-status">
+            <span><small>Gemiddeld</small></span><b>${fmtDuration(r.avg)}</b>
+          </div>
+        </div>
+
         <div class="coords"></div>`;
+
       const box = card.querySelector(".coords");
       box.textContent = text;
+
+      card.querySelector(".details").onclick = e=>{
+        e.stopPropagation();
+        openPlayerDetail(r);
+      };
       card.querySelector(".toggle").onclick = e=>{
+        e.stopPropagation();
         const open = box.style.display==="block";
         box.style.display=open?"none":"block";
         e.currentTarget.textContent=open?"Bekijk coords":"Verberg coords";
       };
-      card.querySelector(".copy").onclick = e=>copyText(text,e.currentTarget);
+      card.querySelector(".copy").onclick = e=>{
+        e.stopPropagation();
+        copyText(text,e.currentTarget);
+      };
+
+      const setCategory = category => {
+        document.getElementById("categoryFilter").value = category;
+        renderAll();
+      };
+      card.querySelector(".status-full").onclick = e=>{e.stopPropagation();setCategory("full");};
+      card.querySelector(".status-half").onclick = e=>{e.stopPropagation();setCategory("half");};
+      card.querySelector(".status-building").onclick = e=>{e.stopPropagation();setCategory("building");};
+      card.onclick = ()=>openPlayerDetail(r);
+
       playersView.appendChild(card);
     });
 
@@ -319,6 +470,7 @@
 
   function renderAll() {
     const rows = filteredRows();
+    renderCommandCenter(rows);
     renderSummary(rows);
     renderPlayers(rows);
     renderPlanner(rows);
